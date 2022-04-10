@@ -23,8 +23,9 @@ from dotenv import load_dotenv
 dotenv_path = os.path.join(os.path.dirname(__file__), "../.env")
 load_dotenv(dotenv_path=dotenv_path)
 
-my_hivemq_cloud_username = os.environ.get("mqtt_creds_username")
-my_hivemq_cloud_password = os.environ.get("mqtt_creds_password")
+mqtt_broker_url = os.environ.get("mqtt_broker_url")
+mqtt_broker_creds_username = os.environ.get("mqtt_broker_creds_username")
+mqtt_broker_creds_password = os.environ.get("mqtt_broker_creds_password")
 
 # setting callbacks for different events to see if it works, print the message etc.
 def on_connect(client, userdata, flags, rc, properties=None):
@@ -51,9 +52,9 @@ client.on_connect = on_connect
 # enable TLS for secure connection
 client.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)
 # set username and password
-client.username_pw_set("TomIoTDevice", my_hivemq_cloud_password)
+client.username_pw_set(mqtt_broker_creds_username, mqtt_broker_creds_password)
 # connect to HiveMQ Cloud on port 8883 (default for MQTT)
-client.connect("738603b987434609a7e951b1054791cb.s2.eu.hivemq.cloud", 8883)
+client.connect(mqtt_broker_url, 8883)
 
 # setting callbacks, use separate functions like above for better visibility
 ## client.on_subscribe = on_subscribe
@@ -64,7 +65,7 @@ client.on_publish = on_publish
 ## client.subscribe("encyclopedia/#", qos=1)
 
 # a single publish, this can also be done in loops, etc.
-client.publish("encyclopedia/temperature", payload="sooooooooo hot!", qos=1)
+client.publish("encyclopedia/temperature", payload="coooooold!", qos=1)
 
 # loop_forever for simplicity, here you need to stop the loop manually
 # you can also use loop_start and loop_stop
