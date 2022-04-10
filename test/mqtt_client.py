@@ -15,11 +15,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import time
+import os, time
 import paho.mqtt.client as paho
 from paho import mqtt
+from dotenv import load_dotenv
 
-my_hivemq_cloud_password = 'simple,YET;powerfull826'
+dotenv_path = os.path.join(os.path.dirname(__file__), "../.env")
+load_dotenv(dotenv_path=dotenv_path)
+
+my_hivemq_cloud_username = os.environ.get("mqtt_creds_username")
+my_hivemq_cloud_password = os.environ.get("mqtt_creds_password")
 
 # setting callbacks for different events to see if it works, print the message etc.
 def on_connect(client, userdata, flags, rc, properties=None):
@@ -59,7 +64,7 @@ client.on_publish = on_publish
 ## client.subscribe("encyclopedia/#", qos=1)
 
 # a single publish, this can also be done in loops, etc.
-client.publish("encyclopedia/temperature", payload="hot", qos=1)
+client.publish("encyclopedia/temperature", payload="sooooooooo hot!", qos=1)
 
 # loop_forever for simplicity, here you need to stop the loop manually
 # you can also use loop_start and loop_stop
