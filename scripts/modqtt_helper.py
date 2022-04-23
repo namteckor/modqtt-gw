@@ -47,8 +47,8 @@ class ModbusHelper(object):
 		'coil': 1
 	}
 
-	# Method to parse a Modbus template .csv configuration file and build the various Modbus TCP calls the client shall send in an "optimized" way (optimized to reduce/minimize the number of calls)
-	# it returns 3 elements: call_groups and interpreter_helper, mqtt_helper
+	# Method to parse a modqtt template .csv configuration file and build the various Modbus TCP calls the client shall send in an "optimized" way (optimized to reduce/minimize the number of calls)
+	# it returns 3 elements: call_groups, interpreter_helper, and mqtt_helper
 	@classmethod
 	def parse_template_build_calls(cls, full_path_to_modbus_template_csv):
 		call_groups = {}
@@ -108,13 +108,15 @@ class ModbusHelper(object):
 			mqtt_retain = read_entry['mqtt_retain']
 			mqtt_publish = read_entry['mqtt_publish']
 			mqtt_deadband = read_entry['mqtt_deadband']
+			mqtt_low = read_entry['mqtt_low']
+			mqtt_high = read_entry['mqtt_high']
 
-			# set the MQTT topic
+			# set the MQTT topic, if no topic provided, the tag_name will be used as topic, otherwise the tag_name is appended to the provided topic name
 			if (not mqtt_topic) or (mqtt_topic == '') or (mqtt_topic is None):
 				mqtt_topic = read_tag_name
 			else:
 				mqtt_topic = mqtt_topic + '/' + read_tag_name
-
+			# special case to handle packedbook data_type, create multiple topics accordingly
 			if read_data_type == 'packedbool':
 				mqtt_helper[read_tag_name+'_uint16_value'] = {
 					'mqtt_topic': mqtt_topic+'_uint16_value'
@@ -181,6 +183,7 @@ class ModbusHelper(object):
 				mqtt_publish = 'rbe'
 
 			# set the MQTT deadband, default to 0 if none specified or unsupported, if data_type is 'di' or 'coil', also if mqqt_publish is not rbe
+			# note on deadband: the comparison is STRICTLY greater than, meaning if the change is exactly equal to the deadband, the value is not reported
 			if (not mqtt_deadband) or (mqtt_deadband == '') or (mqtt_deadband is None):
 				mqtt_deadband = float(0)
 			elif read_data_type in ['di','coil']:
@@ -201,6 +204,40 @@ class ModbusHelper(object):
 				print('\tUsing default mqtt_deadband of: 0')
 				mqtt_deadband = float(0)
 
+			# set the MQTT low limit if provided, if the value is equal to or lower than the low limit, it will be reported so long as this remains true, regardless of deadband changes
+			if (not mqtt_low) or (mqtt_low == '') or (mqtt_low is None):
+				mqtt_low = None
+			elif (isinstance(mqtt_low,int) or isinstance(mqtt_low,float) or isinstance(mqtt_low,str)):
+				try:
+					mqtt_low = float(mqtt_low)			
+				except:
+					print('\n\t[WARNING] Unsupported mqtt_low for item:')
+					print('\t\t',read_entry)
+					print('\tUsing default mqtt_low of: None')
+					mqtt_low = None
+			else:
+				print('\n\t[WARNING] Unsupported mqtt_low for item:')
+				print('\t\t',read_entry)
+				print('\tUsing default mqtt_low of: None')
+				mqtt_low = None
+
+			# set the MQTT high limit if provided, if the value is equal to or greater than the high limit, it will be reported so long as this remains true, regardless of deadband changes
+			if (not mqtt_high) or (mqtt_high == '') or (mqtt_high is None):
+				mqtt_high = None
+			elif (isinstance(mqtt_high,int) or isinstance(mqtt_high,float) or isinstance(mqtt_high,str)):
+				try:
+					mqtt_high = float(mqtt_high)			
+				except:
+					print('\n\t[WARNING] Unsupported mqtt_high for item:')
+					print('\t\t',read_entry)
+					print('\tUsing default mqtt_high of: None')
+					mqtt_high = None
+			else:
+				print('\n\t[WARNING] Unsupported mqtt_high for item:')
+				print('\t\t',read_entry)
+				print('\tUsing default mqtt_high of: None')
+				mqtt_high = None
+						
 			# lookup the read_type in ModbusHelper.FUNCTIONS_CODES and build the lookup table
 			fc_lookup_table = {}			
 
@@ -218,9 +255,6 @@ class ModbusHelper(object):
 							#interpreter_helper[fc] = {'addresses': [],'address_count_map': {},'address_data_type_map':{},'address_tag_name_map': {}}
 							interpreter_helper[fc] = {'addresses': [],'address_maps': {}}
 
-						#interpreter_helper[fc]['address_count_map'][int(read_address)] = ModbusHelper.DATA_TYPES_REGISTER_COUNT[read_data_type]
-						#interpreter_helper[fc]['address_data_type_map'][int(read_address)] = read_data_type
-						#interpreter_helper[fc]['address_tag_name_map'][int(read_address)] = read_tag_name
 						interpreter_helper[fc]['address_maps'][int(read_address)] = {}
 						interpreter_helper[fc]['address_maps'][int(read_address)]['count'] = ModbusHelper.DATA_TYPES_REGISTER_COUNT[read_data_type]
 						interpreter_helper[fc]['address_maps'][int(read_address)]['data_type'] = read_data_type
@@ -234,6 +268,8 @@ class ModbusHelper(object):
 						mqtt_helper[read_tag_name]['mqtt_retain'] = mqtt_retain
 						mqtt_helper[read_tag_name]['mqtt_publish'] = mqtt_publish
 						mqtt_helper[read_tag_name]['mqtt_deadband'] = mqtt_deadband
+						mqtt_helper[read_tag_name]['mqtt_low'] = mqtt_low
+						mqtt_helper[read_tag_name]['mqtt_high'] = mqtt_high
 
 						if read_data_type == 'packedbool':
 							packedbool_tag_name = read_tag_name+'_uint16_value'
@@ -242,6 +278,8 @@ class ModbusHelper(object):
 							mqtt_helper[packedbool_tag_name]['mqtt_retain'] = mqtt_retain
 							mqtt_helper[packedbool_tag_name]['mqtt_publish'] = mqtt_publish
 							mqtt_helper[packedbool_tag_name]['mqtt_deadband'] = mqtt_deadband
+							mqtt_helper[packedbool_tag_name]['mqtt_low'] = mqtt_low
+							mqtt_helper[packedbool_tag_name]['mqtt_high'] = mqtt_high
 							
 							for i in range(0,16):
 								packedbool_tag_name = read_tag_name+'_bit'+str(i)
@@ -250,6 +288,8 @@ class ModbusHelper(object):
 								mqtt_helper[packedbool_tag_name]['mqtt_retain'] = mqtt_retain
 								mqtt_helper[packedbool_tag_name]['mqtt_publish'] = mqtt_publish
 								mqtt_helper[packedbool_tag_name]['mqtt_deadband'] = mqtt_deadband
+								mqtt_helper[packedbool_tag_name]['mqtt_low'] = mqtt_low
+								mqtt_helper[packedbool_tag_name]['mqtt_high'] = mqtt_high
 
 						for call_address in range(int(read_address),int(read_address)+ModbusHelper.DATA_TYPES_REGISTER_COUNT[read_data_type]):
 							interpreter_helper[fc]['addresses'].append(call_address)
@@ -271,8 +311,8 @@ class ModbusHelper(object):
 		return call_groups, interpreter_helper, mqtt_helper
 
 	@classmethod
-	def parse_json_config(cls, full_path_to_modbus_config_json):
-		with open(full_path_to_modbus_config_json) as json_file:
+	def parse_json_config(cls, full_path_to_modqtt_config_json):
+		with open(full_path_to_modqtt_config_json) as json_file:
 			config = json.load(json_file)
 		json_file.close()
 		
@@ -283,7 +323,7 @@ class ModbusHelper(object):
 			# for keys/values that should be entered as string
 			if key in ['modbus_server_ip','mqtt_client_id']:
 				if not isinstance(key_value,str):
-					print('\t[ERROR] Error parsing config file:',str(full_path_to_modbus_config_json))
+					print('\t[ERROR] Error parsing config file:',str(full_path_to_modqtt_config_json))
 					print('\t[ERROR] value of key "'+str(key)+'" should be of type "string" (str)')
 					print('\t[ERROR] current type of value for key "'+str(key)+'" is',type(key_value),'and current value is config["'+str(key)+'"] =',str(key_value))
 					return
@@ -295,7 +335,7 @@ class ModbusHelper(object):
 					else:
 						key_value_split = key_value.split('.')
 						if not (len(key_value_split) == 4):
-							print('\t[ERROR] Error parsing config file:',str(full_path_to_modbus_config_json))
+							print('\t[ERROR] Error parsing config file:',str(full_path_to_modqtt_config_json))
 							print('\t[ERROR] incorrect IPv4 address format provided:',str(key_value))
 							print('\t[ERROR] please provide a valid IPv4 address format A.B.C.D with A, B, C, and D in range [0,255]')
 							return
@@ -303,13 +343,13 @@ class ModbusHelper(object):
 							for octet in key_value_split:
 								if not octet.isnumeric():
 									print(octet,type(octet))
-									print('\t[ERROR] Error parsing config file:',str(full_path_to_modbus_config_json))
+									print('\t[ERROR] Error parsing config file:',str(full_path_to_modqtt_config_json))
 									print('\t[ERROR] incorrect IPv4 address format provided:',str(key_value))
 									print('\t[ERROR] octet "'+str(octet)+'" is not convertible to type int')
 									print('\t[ERROR] please provide a valid IPv4 address format A.B.C.D with A, B, C, and D in range [0,255]')
 									return
 								elif (int(octet) < 0) or (int(octet) > 255):
-									print('\t[ERROR] Error parsing config file:',str(full_path_to_modbus_config_json))
+									print('\t[ERROR] Error parsing config file:',str(full_path_to_modqtt_config_json))
 									print('\t[ERROR] incorrect IPv4 address provided:',str(key_value))
 									print('\t[ERROR] octet "'+str(octet)+'" shall be in range [0,255]')
 									print('\t[ERROR] please provide a valid IPv4 address format A.B.C.D with A, B, C, and D in range [0,255]')
@@ -318,37 +358,37 @@ class ModbusHelper(object):
 			# for keys/values that should be entered as integer
 			elif key in ['modbus_server_port','modbus_server_id','mqtt_broker_port']:
 				if not isinstance(key_value,int):
-					print('\t[ERROR] Error parsing config file:',str(full_path_to_modbus_config_json))
+					print('\t[ERROR] Error parsing config file:',str(full_path_to_modqtt_config_json))
 					print('\t[ERROR] value of key "'+str(key)+'" should be of type "integer" (int)')
 					print('\t[ERROR] current type of value for key "'+str(key)+'" is',type(key_value),'and current value is config["'+str(key)+'"] =',str(key_value))
 					return
 				# check for valid TCP port range
 				if (key == 'modbus_server_port') or (key == 'mqtt_broker_port'):
 					if not (key_value in range(1,65536)):
-						print('\t[ERROR] Error parsing config file:',str(full_path_to_modbus_config_json))
+						print('\t[ERROR] Error parsing config file:',str(full_path_to_modqtt_config_json))
 						print('\t[ERROR] invalid TCP port "'+str(key_value)+'" out of valid range [1,65535] for TCP ports')
 						return
 					elif key_value not in [502,503,8883]:
-						print('\t[WARNING] "modbus_server_port" from config file not in common Modbus TCP or MQTT port list [502,503, 8883]:',str(key_value),'\n')
+						print('\t[WARNING] "modbus_server_port" or "mqtt_broker_port" from config file not in common Modbus TCP or MQTT ports list [502,503, 8883]:',str(key_value),'\n')
 						continue
 				# check for valid Modbus Server ID
 				elif key == 'modbus_server_id':
 					if not (key_value in range(0,256)):
-						print('\t[ERROR] Error parsing config file:',str(full_path_to_modbus_config_json))
+						print('\t[ERROR] Error parsing config file:',str(full_path_to_modqtt_config_json))
 						print('\t[ERROR] invalid server ID "'+str(key_value)+'" out of valid range [0,255]')
 						return				
 			
 			# for keys/values that should be entered as either integer or float
 			elif key in ['modbus_poll_interval_seconds','modbus_server_timeout_seconds']:
 				if not (isinstance(key_value,int) or isinstance(config[key],float)):
-					print('\t[ERROR] Error parsing config file:',str(full_path_to_modbus_config_json))
+					print('\t[ERROR] Error parsing config file:',str(full_path_to_modqtt_config_json))
 					print('\t[ERROR] value of key "'+str(key)+'" should be of type "integer" (int) or "float" (float)')
 					print('\t[ERROR] current type of value for key "'+str(key)+'" is',type(key_value),'and current value is config["'+str(key)+'"] =',str(key_value))
 					return
 			# for keys/values that should be entered as boolean, either true or false
 			elif key in ['']:
 				if not isinstance(key_value,bool):
-					print('\t[ERROR] Error parsing config file:',str(full_path_to_modbus_config_json))
+					print('\t[ERROR] Error parsing config file:',str(full_path_to_modqtt_config_json))
 					print('\t[ERROR] value of key "'+str(key)+'" should be of type boolen, either true or false in the .json config')
 					print('\t[ERROR] current type of value for key "'+str(key)+'" is',type(key_value),'and current value is config["'+str(key)+'"] =',str(key_value))
 					return
@@ -568,18 +608,18 @@ class ModbusTCPMqttDataGateway:
 		time.sleep(2)
 		sys.exit(0)	
 	
-	# setting callbacks for different events to see if it works, print the message etc.
+	# setting callbacks for on_connect events, print some debug feedback
 	def on_connect(self, client, userdata, flags, rc, properties=None):
-		print("CONNACK received with code %s." % rc)
+		print('\t[INFO] **MQTT** CONNACK received with code %s.' % rc)
 		if rc == 0:
-			print("Connected to MQTT Broker!")
+			print('\t[INFO] **MQTT** Connected to MQTT Broker!')
 			self.mqtt_connected = True
 		else:
-			print("Failed to connect, return code %d\n", rc)
+			print('\t[INFO] **MQTT** Failed to connect, return code %d\n', rc)
 
-	# with this callback you can see if your publish was successful
+	# setting callback for on_publish event, check if publish was successful
 	def on_publish(self, client, userdata, mid, properties=None):
-		print(json.dumps(
+		print('\t[INFO] **MQTT**',json.dumps(
 				{
 					'client': str(client),
 					'userdata': str(userdata),
@@ -591,14 +631,15 @@ class ModbusTCPMqttDataGateway:
 
 	# handle disconnects
 	def on_disconnect(self, client, userdata, rc):
-		print("Client got disconnected...")
+		print('\t[INFO] **MQTT** Client got disconnected...')
 
+	# used this for testing only, slow and inefficient as it tears down the connection to broker at every publish...
 	def mqtt_publish_multiple(self,lod):
 		publish.multiple(
 				msgs=lod, 
 				hostname=self.mqtt_broker_url, 
-				port=self.modbus_config['mqtt_broker_port'], 
-				client_id=self.modbus_config['mqtt_client_id'], 
+				port=self.modqtt_config['mqtt_broker_port'], 
+				client_id=self.modqtt_config['mqtt_client_id'], 
 				keepalive=60, 
 				will=None, 
 				auth= {'username':self.mqtt_broker_creds_username, 'password':self.mqtt_broker_creds_password}, 
@@ -607,13 +648,42 @@ class ModbusTCPMqttDataGateway:
 				transport="tcp"
 			)
 	
+	def mqtt_parse_publish_tag(self, tag_key, tag_current_value, ts_utc, ts_local,limit_flag=False):
+		tag_topic = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_topic']
+		tag_qos = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_qos']
+		tag_retain = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_retain']
+		tag_payload = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_payload']
+		if tag_payload == 'json':
+			tag_value = {
+				'timestamp_utc': ts_utc,
+				'timestamp_local': ts_local,
+				'value': tag_current_value
+			}
+			tag_value = json.dumps(tag_value)
+		elif tag_payload == 'text':
+			tag_value = str(tag_current_value)										
+		
+		self.mqqt_last_published_values[tag_key]={
+			'timestamp_utc':ts_utc,
+			'timestamp_local':ts_local,
+			'last_published_value': tag_current_value,
+			'limit_flag': limit_flag
+		}		
+		self.mqtt_client_publish_count += 1
+		publish_result = self.mqttc.publish(tag_topic, payload=tag_value, qos=tag_qos, retain=tag_retain)											
+		print('\t[INFO] **MQTT**',publish_result)
+		publish_status = publish_result[0]
+		if publish_status == 0:
+			print('\t[INFO] **MQTT** Sent: '+str(tag_value)+' to topic "'+str(tag_topic)+'" with qos='+str(tag_qos)+' and retain='+str(tag_retain))
+		else:
+			print('\t[INFO] **MQTT** Failed to send message to topic "'+str(tag_topic)+'"')
+	
 	def mqtt_publish_data(self, previous_values, current_values, mqtt_client=None,time_format = '%Y-%m-%d %H:%M:%S%z'):
 		if mqtt_client is None:
 			mqtt_client = self.mqttc			 	
 		
+		# every time the modqtt gateway instance is freshly started, it will connect and publish all the data tags
 		if previous_values is None:
-			lod_messages = []
-			publish_count = 0
 			for tag_key in current_values:
 				if tag_key == 'timestamp_utc':
 					ts_utc = current_values[tag_key]
@@ -622,167 +692,147 @@ class ModbusTCPMqttDataGateway:
 					ts_local = current_values[tag_key]
 					continue
 				else:
-					tag_topic = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_topic']
-					tag_qos = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_qos']
-					tag_retain = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_retain']
-					tag_payload = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_payload']
-					if tag_payload == 'json':
-						tag_value = {
-							'timestamp_utc': ts_utc,
-							'timestamp_local': ts_local,
-							'value': current_values[tag_key]
-						}
-						tag_value = json.dumps(tag_value)
-					elif tag_payload == 'text':
-						tag_value = str(current_values[tag_key])										
-					
-					self.mqqt_last_published_values[tag_key]={
-						'timestamp_utc':ts_utc,
-						'timestamp_local':ts_local,
-						'last_published_value': current_values[tag_key]
-					}
-					lod_messages.append({'topic':tag_topic,'payload':tag_value,'qos':tag_qos,'retain':tag_retain})					
+					tag_current_value = current_values[tag_key]
+					self.mqtt_parse_publish_tag(
+							tag_key = tag_key,
+							tag_current_value = tag_current_value,
+							ts_utc = ts_utc,
+							ts_local = ts_local
+						)					
 
-					publish_count += 1
-					publish_result = mqtt_client.publish(tag_topic, payload=tag_value, qos=tag_qos, retain=tag_retain)											
-					print('\t',publish_result)
-					publish_status = publish_result[0]
-					if publish_status == 0:
-						print('\tSent: '+str(tag_value)+' to topic "'+str(tag_topic)+'" with qos='+str(tag_qos)+' and retain='+str(tag_retain))
-					else:
-						print('\tFailed to send message to topic "'+str(tag_topic)+'"')
-
-			#self.mqtt_publish_multiple(lod=lod_messages)
-
-			while (publish_count > self.mqtt_last_successful_mid_count):
+			while (self.mqtt_client_publish_count > self.mqtt_last_successful_mid_count):
 				waiting = 1
-			#mqtt_client.loop_stop()
+
+		# logic to only publish what is relevant (i.e. deadband changes, high/low limits reached/recovered, etc.)
 		else:
-			lod_messages = []
-			publish_count = 0
 			for tag_key in current_values:
 				if tag_key == 'timestamp_utc':
 					ts_utc = current_values[tag_key]
-					previous_ts_utc = previous_values[tag_key]					
+					# previous_ts_utc = previous_values[tag_key]					
 					continue
 				elif tag_key == 'timestamp_local':
 					ts_local = current_values[tag_key]
-					previous_ts_local = previous_values[tag_key]
+					# previous_ts_local = previous_values[tag_key]
 					continue
 				else:
 					ts_utc_previously_published = self.mqqt_last_published_values[tag_key]['timestamp_utc']
 					tag_time_elapsed = datetime.datetime.strptime(ts_utc,time_format) - datetime.datetime.strptime(ts_utc_previously_published,time_format)
 					tag_current_value = current_values[tag_key]
-					tag_previous_value = previous_values[tag_key]
+					# tag_previous_value = previous_values[tag_key]
 					tag_previously_published_value = self.mqqt_last_published_values[tag_key]['last_published_value']
-					tag_delta_value = abs((float(tag_current_value) - float(tag_previous_value)))
+					# tag_delta_value = abs((float(tag_current_value) - float(tag_previous_value)))
 					tag_delta_value_last_published = abs((float(tag_current_value) - float(tag_previously_published_value))) 
 					
 					tag_publish = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_publish']
-					# if the tag is configured to be uploaded via 'rbe', then the deadband is considered
+					
+					# regardless of reporting/upload method, if the value falls outside of high/low limits (assuming they are not None), it is reported
+					if self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_low'] is not None:
+						if float(tag_current_value) <= self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_low']:
+							self.mqtt_parse_publish_tag(
+									tag_key = tag_key,
+									tag_current_value = tag_current_value,
+									ts_utc = ts_utc,
+									ts_local = ts_local,
+									limit_flag=True
+								)
+							continue
+						# handle alarm recovery
+						elif self.mqqt_last_published_values[tag_key]['limit_flag']:
+							self.mqtt_parse_publish_tag(
+									tag_key = tag_key,
+									tag_current_value = tag_current_value,
+									ts_utc = ts_utc,
+									ts_local = ts_local,
+									limit_flag=False
+								)
+							continue
+					if self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_high'] is not None:
+						if float(tag_current_value) >= self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_high']:
+							self.mqtt_parse_publish_tag(
+								tag_key = tag_key,
+								tag_current_value = tag_current_value,
+								ts_utc = ts_utc,
+								ts_local = ts_local,
+								limit_flag=True
+							)
+							continue
+						# handle alarm recovery
+						elif self.mqqt_last_published_values[tag_key]['limit_flag']:
+							self.mqtt_parse_publish_tag(
+									tag_key = tag_key,
+									tag_current_value = tag_current_value,
+									ts_utc = ts_utc,
+									ts_local = ts_local,
+									limit_flag=False
+								)
+							continue
+
+					# if the tag is configured to be uploaded via 'rbe', withih high/low limits, then the deadband is considered, i.e. the current value is compared against the last reported/published value
 					if tag_publish == 'rbe':
-						if tag_delta_value > self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_deadband']:
-							tag_topic = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_topic']
-							tag_qos = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_qos']
-							tag_retain = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_retain']
-							tag_payload = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_payload']
-							if tag_payload == 'json':
-								tag_value = {
-									'timestamp_utc': ts_utc,
-									'timestamp_local': ts_local,
-									'value': current_values[tag_key]
-								}
-								tag_value = json.dumps(tag_value)
-							elif tag_payload == 'text':
-								tag_value = str(current_values[tag_key])										
-
-							publish_count += 1
-							publish_result = mqtt_client.publish(tag_topic, payload=tag_value, qos=tag_qos, retain=tag_retain)											
-							print('\t',publish_result)
-							publish_status = publish_result[0]
-							if publish_status == 0:
-								print('\tSent: '+str(tag_value)+' to topic "'+str(tag_topic)+'" with qos='+str(tag_qos)+' and retain='+str(tag_retain))
-							else:
-								print('\tFailed to send message to topic "'+str(tag_topic)+'"')
-
-							self.mqqt_last_published_values[tag_key]={
-								'timestamp_utc':ts_utc,
-								'timestamp_local':ts_local,
-								'last_published_value': current_values[tag_key]
-							}
-
-							#lod_messages.append({'topic':tag_topic,'payload':tag_value,'qos':tag_qos,'retain':tag_retain})
+						if tag_delta_value_last_published > self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_deadband']:	#tag_delta_value > self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_deadband']:							
+							self.mqtt_parse_publish_tag(
+									tag_key = tag_key,
+									tag_current_value = tag_current_value,
+									ts_utc = ts_utc,
+									ts_local = ts_local
+								)
 						else:
 							continue
-					# if the tag is configured to be uploaded at a regular interval, then the deadband is ignored
+					# if the tag is configured to be uploaded at a regular interval, then the deadband is ignored, unless the -d "force deadband" switch is activated (to be added)
 					elif float(tag_time_elapsed.seconds) >= float(tag_publish):
-						tag_topic = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_topic']
-						tag_qos = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_qos']
-						tag_retain = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_retain']
-						tag_payload = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_payload']
-						if tag_payload == 'json':
-							tag_value = {
-								'timestamp_utc': ts_utc,
-								'timestamp_local': ts_local,
-								'value': current_values[tag_key]
-							}
-							tag_value = json.dumps(tag_value)
-						elif tag_payload == 'text':
-							tag_value = str(current_values[tag_key])										
-					
-						publish_count += 1
-						publish_result = mqtt_client.publish(tag_topic, payload=tag_value, qos=tag_qos, retain=tag_retain)											
-						print('\t',publish_result)
-						publish_status = publish_result[0]
-						if publish_status == 0:
-							print('\tSent: '+str(tag_value)+' to topic "'+str(tag_topic)+'" with qos='+str(tag_qos)+' and retain='+str(tag_retain))
-						else:
-							print('\tFailed to send message to topic "'+str(tag_topic)+'"')
+						tag_current_value = current_values[tag_key]
 						
-						self.mqqt_last_published_values[tag_key]={
-							'timestamp_utc':ts_utc,
-							'timestamp_local':ts_local,
-							'last_published_value': current_values[tag_key]
-						}
+						if not self.mqtt_force_deadband:
+							self.mqtt_parse_publish_tag(
+								tag_key = tag_key,
+								tag_current_value = tag_current_value,
+								ts_utc = ts_utc,
+								ts_local = ts_local
+							)
+						elif tag_delta_value_last_published > self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_deadband']:				
+							self.mqtt_parse_publish_tag(
+								tag_key = tag_key,
+								tag_current_value = tag_current_value,
+								ts_utc = ts_utc,
+								ts_local = ts_local
+							)
 
-						#lod_messages.append({'topic':tag_topic,'payload':tag_value,'qos':tag_qos,'retain':tag_retain})
-			
-			#self.mqtt_publish_multiple(lod=lod_messages)			
-
-		print('MQTT publish cycle complete!')
+		print('\t[INFO] **MQTT** MQTT publish cycle complete!')
 		return
 	
-	def __init__(self, full_path_to_modbus_config_json=None, full_path_to_modbus_template_csv=None, quiet=False):
-		if full_path_to_modbus_config_json is None:
-			print('\t[ERROR] a Modbus config.json file is required for a ModbusTCPDataLogger instance')
-			print('\t[ERROR] please provide the full path to the Modbus config.json file')
+	def __init__(self, full_path_to_modqtt_config_json=None, full_path_to_modqtt_template_csv=None, force_deadband=False, quiet=False):
+		if full_path_to_modqtt_config_json is None:
+			print('\t[ERROR] a modqtt config.json file is required for a ModbusTCPDataLogger instance')
+			print('\t[ERROR] please provide the full path to the modqtt config.json file')
 			return
-		if full_path_to_modbus_template_csv is None:
-			print('\t[ERROR] a Modbus template.csv file is required for a ModbusTCPDataLogger instance')
-			print('\t[ERROR] please provide the full path to the Modbus template.csv file')
+		if full_path_to_modqtt_template_csv is None:
+			print('\t[ERROR] a modqtt template.csv file is required for a ModbusTCPDataLogger instance')
+			print('\t[ERROR] please provide the full path to the modqtt template.csv file')
 			return
 				
-		self.modbus_config = ModbusHelper.parse_json_config(full_path_to_modbus_config_json)
-		if self.modbus_config is None:
-			print('\t[ERROR] An error occured while parsing the Modbus json configuration file!')
-			print('\t[ERROR] Please review the error messages, correct the Modbus json configuration file and try again.')
+		self.modqtt_config = ModbusHelper.parse_json_config(full_path_to_modqtt_config_json)
+		if self.modqtt_config is None:
+			print('\t[ERROR] An error occured while parsing the modqtt json configuration file!')
+			print('\t[ERROR] Please review the error messages, correct the modqtt json configuration file and try again.')
 			print('\t[ERROR] Now exiting Python with sys.exit()')
 			sys.exit()		
 
-		self.mqtt_broker_url = os.environ.get("mqtt_broker_url")
-		self.mqtt_broker_creds_username = os.environ.get("mqtt_broker_creds_username")
-		self.mqtt_broker_creds_password = os.environ.get("mqtt_broker_creds_password")
+		self.mqtt_force_deadband = force_deadband
+		self.mqtt_broker_url = os.environ.get('mqtt_broker_url')
+		self.mqtt_broker_creds_username = os.environ.get('mqtt_broker_creds_username')
+		self.mqtt_broker_creds_password = os.environ.get('mqtt_broker_creds_password')
 		self.mqtt_connected = False
 		self.mqtt_last_successful_mid_count = 0
+		self.mqtt_client_publish_count = 0
 		self.mqqt_last_published_values = {}
 		# using MQTT version 5 here, for 3.1.1: MQTTv311, 3.1: MQTTv31
 		# userdata is user defined data of any type, updated by user_data_set()
 		# client_id is the given name of the client
-		self.mqttc = paho.Client(client_id=self.modbus_config['mqtt_client_id'], userdata=None, protocol=paho.MQTTv5)
+		self.mqttc = paho.Client(client_id=self.modqtt_config['mqtt_client_id'], userdata=None, protocol=paho.MQTTv5)
 		self.mqttc.on_connect = self.on_connect
 
 		# enable TLS for secure connection
-		if self.modbus_config['mqtt_broker_tls']:
+		if self.modqtt_config['mqtt_broker_tls']:
 			self.mqttc.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)
 		# set username and password
 		self.mqttc.username_pw_set(self.mqtt_broker_creds_username, self.mqtt_broker_creds_password)		
@@ -790,28 +840,29 @@ class ModbusTCPMqttDataGateway:
 		self.mqttc.on_publish = self.on_publish		
 		
 		# connect to MQTT Broker on specified port
-		self.mqttc.connect(self.mqtt_broker_url, self.modbus_config['mqtt_broker_port'])		
+		self.mqttc.connect(self.mqtt_broker_url, self.modqtt_config['mqtt_broker_port'])		
 
 		self.mqttc.loop_start()
 
-		while self.mqtt_connected != True:    #Wait for connection
+		# Wait for connection before moving forward
+		while self.mqtt_connected != True:
 			time.sleep(0.1)
 
 		self.modbus_tcp_client = ModbusTCPClient(
-				server_ip=self.modbus_config['modbus_server_ip'],
-				server_port=self.modbus_config['modbus_server_port'],
-				server_id=self.modbus_config['modbus_server_id'],
-				poll_interval_seconds=self.modbus_config['modbus_poll_interval_seconds']
+				server_ip=self.modqtt_config['modbus_server_ip'],
+				server_port=self.modqtt_config['modbus_server_port'],
+				server_id=self.modqtt_config['modbus_server_id'],
+				poll_interval_seconds=self.modqtt_config['modbus_poll_interval_seconds']
 			)
-		self.modbus_tcp_client.load_template(full_path_to_modbus_template_csv)
-		self.modbus_tcp_client.connect(self.modbus_config['modbus_server_timeout_seconds'])				
+		self.modbus_tcp_client.load_template(full_path_to_modqtt_template_csv)
+		self.modbus_tcp_client.connect(self.modqtt_config['modbus_server_timeout_seconds'])				
 
 		signal.signal(signal.SIGINT, self.termination_signal_handler)
 
 		print('Press Ctrl+C to stop and exit gracefully...')
 		previous_response = None
 		while True:
-			#wake_up_time = datetime.datetime.now() + datetime.timedelta(seconds=self.modbus_config['modbus_poll_interval_seconds'])
+			#wake_up_time = datetime.datetime.now() + datetime.timedelta(seconds=self.modqtt_config['modbus_poll_interval_seconds'])
 			modbus_poll_response = self.modbus_tcp_client.cycle_poll()						
 			
 			if not quiet:
@@ -822,12 +873,10 @@ class ModbusTCPMqttDataGateway:
 					previous_values = previous_response,
 					current_values = modbus_poll_response,
 					mqtt_client=self.mqttc
-				)
+				)			
 			
-			#self.mqttc.loop_stop()
-			
-			#time.sleep(self.modbus_config['poll_interval_seconds'])			
-			wake_up_time = datetime.datetime.now() + datetime.timedelta(seconds=self.modbus_config['modbus_poll_interval_seconds'])
+			#time.sleep(self.modqtt_config['poll_interval_seconds'])			
+			wake_up_time = datetime.datetime.now() + datetime.timedelta(seconds=self.modqtt_config['modbus_poll_interval_seconds'])
 			while (wake_up_time > datetime.datetime.now()):
 				kill_time = 1
 

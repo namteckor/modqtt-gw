@@ -1,12 +1,13 @@
 #!/usr/bin/python3
 
 import sys, getopt, datetime
-from scripts import modbus_helper
+from scripts import modqtt_helper
 
 def help_and_exit():
 	print('\tUsage: path/to/modqtt-gw.py')
 	print('\t\t'+'-c <path to Modbus configuration file (.json format)> (--config) [REQUIRED]')
 	print('\t\t'+'-t <path to Modbus template file (.csv format)> (--template) [REQUIRED]')
+	print('\t\t'+'-f <to force the deadband logic on MQTT interval uploads, i.e. if set to True, do not report unless changes exceed the deadband, default False> (--force-deadband) [optional]')
 	print('\t\t'+'-q <to be quiet and to not display the interval Modbus reads, default False> (--quiet) [optional]')
 	print('\t\t'+'-h to show the help message and exit (--help) [optional]')
 	sys.exit()
@@ -24,8 +25,8 @@ start_utc = start_local.astimezone(datetime.timezone.utc)
 
 argv = sys.argv[1:]
 
-short_options = 'c:t:qh' 
-long_options =  ['config=','template=','quiet','--help']
+short_options = 'c:t:fqh' 
+long_options =  ['config=','template=','force-deadband','quiet','help']
 
 try:
 	opts, args = getopt.getopt(argv,short_options,long_options)
@@ -58,8 +59,7 @@ if ('-h' not in list_of_options_passed) and ('--help' not in list_of_options_pas
 
 # Set some defaults
 be_quiet = False
-output_log_files_location = None
-data_logging = True
+force_deadband = False
 
 for opt, arg in opts:
 	if opt in ('-h', '--help'):
@@ -74,9 +74,11 @@ for opt, arg in opts:
 		print('\t-q, --quiet\tmute the display of scanned data to the terminal prompt')
 		sys.exit()
 	elif opt in ('-c', '--config'):
-		modbus_config_location = str(arg)
+		modqtt_config_location = str(arg)
 	elif opt in ('-t', '--template'):
-		modbus_template_location = str(arg)	
+		modqtt_template_location = str(arg)	
+	elif opt in ('-f','--force-deadband'):
+		force_deadband = True
 	elif opt in ('-q','--quiet'):
 		be_quiet = True
 	else:
@@ -90,8 +92,9 @@ print('\t[INFO] start_local\t=', start_local.strftime(time_format))
 print('\t[INFO] start_utc\t=', start_utc.strftime(time_format))
 print('')
 
-modbus_mqtt_gateway = modbus_helper.ModbusTCPMqttDataGateway(
-		full_path_to_modbus_config_json=modbus_config_location, 
-		full_path_to_modbus_template_csv=modbus_template_location, 
+modbus_mqtt_gateway = modqtt_helper.ModbusTCPMqttDataGateway(
+		full_path_to_modqtt_config_json=modqtt_config_location, 
+		full_path_to_modqtt_template_csv=modqtt_template_location, 
+		force_deadband=force_deadband,
 		quiet=be_quiet
 	)		
