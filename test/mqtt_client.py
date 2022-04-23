@@ -65,7 +65,7 @@ client.on_publish = on_publish
 ## client.subscribe("encyclopedia/#", qos=1)
 
 # a single publish, this can also be done in loops, etc.
-client.publish("encyclopedia/temperature", payload="coooooold!", qos=1)
+client.publish("encyclopedia/temperature", payload="coooooold!", qos=1, retain=True)
 
 # loop_forever for simplicity, here you need to stop the loop manually
 # you can also use loop_start and loop_stop

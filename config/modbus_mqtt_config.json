@@ -1,0 +1,10 @@
+{
+    "modbus_server_ip": "127.0.0.1",
+    "modbus_server_port": 502,
+    "modbus_server_id": 10,
+    "modbus_server_timeout_seconds": 10.0,
+    "modbus_poll_interval_seconds": 5.0,
+    "mqtt_client_id": "modbus_gateway",
+    "mqtt_broker_port": 8883,
+    "mqtt_broker_tls": true
+}
