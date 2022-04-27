@@ -9,8 +9,6 @@ import paho.mqtt.publish as publish
 from paho import mqtt
 from dotenv import load_dotenv
 
-import pdb
-
 dotenv_path = os.path.join(os.path.dirname(__file__), "../config/.env")
 load_dotenv(dotenv_path=dotenv_path)
 
@@ -108,8 +106,10 @@ class ModbusHelper(object):
 			mqtt_retain = read_entry['mqtt_retain']
 			mqtt_publish = read_entry['mqtt_publish']
 			mqtt_deadband = read_entry['mqtt_deadband']
-			mqtt_low = read_entry['mqtt_low']
-			mqtt_high = read_entry['mqtt_high']
+			mqtt_alarm_low = read_entry['mqtt_alarm_low']
+			mqtt_alarm_high = read_entry['mqtt_alarm_high']
+			mqtt_ignore_low = read_entry['mqtt_ignore_low']
+			mqtt_ignore_high = read_entry['mqtt_ignore_high']
 
 			# set the MQTT topic, if no topic provided, the tag_name will be used as topic, otherwise the tag_name is appended to the provided topic name
 			if (not mqtt_topic) or (mqtt_topic == '') or (mqtt_topic is None):
@@ -182,11 +182,11 @@ class ModbusHelper(object):
 				print('\tUsing default mqtt_publish of: rbe (report by exception)')
 				mqtt_publish = 'rbe'
 
-			# set the MQTT deadband, default to 0 if none specified or unsupported, if data_type is 'di' or 'coil', also if mqqt_publish is not rbe
+			# set the MQTT deadband, default to 0 if none specified or unsupported, if data_type is 'di', 'coil' or 'packedbool', also if mqqt_publish is not rbe
 			# note on deadband: the comparison is STRICTLY greater than, meaning if the change is exactly equal to the deadband, the value is not reported
 			if (not mqtt_deadband) or (mqtt_deadband == '') or (mqtt_deadband is None):
 				mqtt_deadband = float(0)
-			elif read_data_type in ['di','coil']:
+			elif read_data_type in ['di','coil','packedbool']:
 				mqtt_deadband = float(0)
 			elif (isinstance(mqtt_publish,int) or isinstance(mqtt_publish,float)):
 				mqtt_deadband = float(0)
@@ -205,38 +205,72 @@ class ModbusHelper(object):
 				mqtt_deadband = float(0)
 
 			# set the MQTT low limit if provided, if the value is equal to or lower than the low limit, it will be reported so long as this remains true, regardless of deadband changes
-			if (not mqtt_low) or (mqtt_low == '') or (mqtt_low is None):
-				mqtt_low = None
-			elif (isinstance(mqtt_low,int) or isinstance(mqtt_low,float) or isinstance(mqtt_low,str)):
+			if (not mqtt_alarm_low) or (mqtt_alarm_low == '') or (mqtt_alarm_low is None):
+				mqtt_alarm_low = None
+			elif (isinstance(mqtt_alarm_low,int) or isinstance(mqtt_alarm_low,float) or isinstance(mqtt_alarm_low,str)):
 				try:
-					mqtt_low = float(mqtt_low)			
+					mqtt_alarm_low = float(mqtt_alarm_low)			
 				except:
-					print('\n\t[WARNING] Unsupported mqtt_low for item:')
+					print('\n\t[WARNING] Unsupported mqtt_alarm_low for item:')
 					print('\t\t',read_entry)
-					print('\tUsing default mqtt_low of: None')
-					mqtt_low = None
+					print('\tUsing default mqtt_alarm_low of: None')
+					mqtt_alarm_low = None
 			else:
-				print('\n\t[WARNING] Unsupported mqtt_low for item:')
+				print('\n\t[WARNING] Unsupported mqtt_alarm_low for item:')
 				print('\t\t',read_entry)
-				print('\tUsing default mqtt_low of: None')
-				mqtt_low = None
+				print('\tUsing default mqtt_alarm_low of: None')
+				mqtt_alarm_low = None
 
 			# set the MQTT high limit if provided, if the value is equal to or greater than the high limit, it will be reported so long as this remains true, regardless of deadband changes
-			if (not mqtt_high) or (mqtt_high == '') or (mqtt_high is None):
-				mqtt_high = None
-			elif (isinstance(mqtt_high,int) or isinstance(mqtt_high,float) or isinstance(mqtt_high,str)):
+			if (not mqtt_alarm_high) or (mqtt_alarm_high == '') or (mqtt_alarm_high is None):
+				mqtt_alarm_high = None
+			elif (isinstance(mqtt_alarm_high,int) or isinstance(mqtt_alarm_high,float) or isinstance(mqtt_alarm_high,str)):
 				try:
-					mqtt_high = float(mqtt_high)			
+					mqtt_alarm_high = float(mqtt_alarm_high)			
 				except:
-					print('\n\t[WARNING] Unsupported mqtt_high for item:')
+					print('\n\t[WARNING] Unsupported mqtt_alarm_high for item:')
 					print('\t\t',read_entry)
-					print('\tUsing default mqtt_high of: None')
-					mqtt_high = None
+					print('\tUsing default mqtt_alarm_high of: None')
+					mqtt_alarm_high = None
 			else:
-				print('\n\t[WARNING] Unsupported mqtt_high for item:')
+				print('\n\t[WARNING] Unsupported mqtt_alarm_high for item:')
 				print('\t\t',read_entry)
-				print('\tUsing default mqtt_high of: None')
-				mqtt_high = None
+				print('\tUsing default mqtt_alarm_high of: None')
+				mqtt_alarm_high = None
+
+			# set the MQTT ignore low limit if provided
+			if (not mqtt_ignore_low) or (mqtt_ignore_low == '') or (mqtt_ignore_low is None) or (read_data_type in ['di','coil','packedbool']):
+				mqtt_ignore_low = None
+			elif (isinstance(mqtt_ignore_low,int) or isinstance(mqtt_ignore_low,float) or isinstance(mqtt_ignore_low,str)):
+				try:
+					mqtt_ignore_low = float(mqtt_ignore_low)			
+				except:
+					print('\n\t[WARNING] Unsupported mqtt_ignore_low for item:')
+					print('\t\t',read_entry)
+					print('\tUsing default mqtt_ignore_low of: None')
+					mqtt_ignore_low = None
+			else:
+				print('\n\t[WARNING] Unsupported mqtt_ignore_low for item:')
+				print('\t\t',read_entry)
+				print('\tUsing default mqtt_ignore_low of: None')
+				mqtt_ignore_low = None
+			
+			# set the MQTT ignore high limit if provided
+			if (not mqtt_ignore_high) or (mqtt_ignore_high == '') or (mqtt_ignore_high is None) or (read_data_type in ['di','coil','packedbool']):
+				mqtt_ignore_high = None
+			elif (isinstance(mqtt_ignore_high,int) or isinstance(mqtt_ignore_high,float) or isinstance(mqtt_ignore_high,str)):
+				try:
+					mqtt_ignore_high = float(mqtt_ignore_high)			
+				except:
+					print('\n\t[WARNING] Unsupported mqtt_ignore_high for item:')
+					print('\t\t',read_entry)
+					print('\tUsing default mqtt_ignore_high of: None')
+					mqtt_ignore_high = None
+			else:
+				print('\n\t[WARNING] Unsupported mqtt_ignore_high for item:')
+				print('\t\t',read_entry)
+				print('\tUsing default mqtt_ignore_high of: None')
+				mqtt_ignore_high = None
 						
 			# lookup the read_type in ModbusHelper.FUNCTIONS_CODES and build the lookup table
 			fc_lookup_table = {}			
@@ -262,14 +296,17 @@ class ModbusHelper(object):
 						interpreter_helper[fc]['address_maps'][int(read_address)]['scaling_coeff'] = read_entry['scaling_coeff']
 						interpreter_helper[fc]['address_maps'][int(read_address)]['scaling_offset'] = read_entry['scaling_offset']
 						
+						mqtt_helper[read_tag_name]['data_type'] = read_data_type
 						mqtt_helper[read_tag_name]['mqtt_topic'] = mqtt_topic
 						mqtt_helper[read_tag_name]['mqtt_payload'] = mqtt_payload
 						mqtt_helper[read_tag_name]['mqtt_qos'] = mqtt_qos
 						mqtt_helper[read_tag_name]['mqtt_retain'] = mqtt_retain
 						mqtt_helper[read_tag_name]['mqtt_publish'] = mqtt_publish
 						mqtt_helper[read_tag_name]['mqtt_deadband'] = mqtt_deadband
-						mqtt_helper[read_tag_name]['mqtt_low'] = mqtt_low
-						mqtt_helper[read_tag_name]['mqtt_high'] = mqtt_high
+						mqtt_helper[read_tag_name]['mqtt_alarm_low'] = mqtt_alarm_low
+						mqtt_helper[read_tag_name]['mqtt_alarm_high'] = mqtt_alarm_high
+						mqtt_helper[read_tag_name]['mqtt_ignore_low'] = mqtt_ignore_low
+						mqtt_helper[read_tag_name]['mqtt_ignore_high'] = mqtt_ignore_high
 
 						if read_data_type == 'packedbool':
 							packedbool_tag_name = read_tag_name+'_uint16_value'
@@ -278,8 +315,10 @@ class ModbusHelper(object):
 							mqtt_helper[packedbool_tag_name]['mqtt_retain'] = mqtt_retain
 							mqtt_helper[packedbool_tag_name]['mqtt_publish'] = mqtt_publish
 							mqtt_helper[packedbool_tag_name]['mqtt_deadband'] = mqtt_deadband
-							mqtt_helper[packedbool_tag_name]['mqtt_low'] = mqtt_low
-							mqtt_helper[packedbool_tag_name]['mqtt_high'] = mqtt_high
+							mqtt_helper[packedbool_tag_name]['mqtt_alarm_low'] = mqtt_alarm_low
+							mqtt_helper[packedbool_tag_name]['mqtt_alarm_high'] = mqtt_alarm_high
+							mqtt_helper[packedbool_tag_name]['mqtt_ignore_low'] = mqtt_ignore_low
+							mqtt_helper[packedbool_tag_name]['mqtt_ignore_high'] = mqtt_ignore_high
 							
 							for i in range(0,16):
 								packedbool_tag_name = read_tag_name+'_bit'+str(i)
@@ -288,8 +327,10 @@ class ModbusHelper(object):
 								mqtt_helper[packedbool_tag_name]['mqtt_retain'] = mqtt_retain
 								mqtt_helper[packedbool_tag_name]['mqtt_publish'] = mqtt_publish
 								mqtt_helper[packedbool_tag_name]['mqtt_deadband'] = mqtt_deadband
-								mqtt_helper[packedbool_tag_name]['mqtt_low'] = mqtt_low
-								mqtt_helper[packedbool_tag_name]['mqtt_high'] = mqtt_high
+								mqtt_helper[packedbool_tag_name]['mqtt_alarm_low'] = mqtt_alarm_low
+								mqtt_helper[packedbool_tag_name]['mqtt_alarm_high'] = mqtt_alarm_high
+								mqtt_helper[packedbool_tag_name]['mqtt_ignore_low'] = mqtt_ignore_low
+								mqtt_helper[packedbool_tag_name]['mqtt_ignore_high'] = mqtt_ignore_high
 
 						for call_address in range(int(read_address),int(read_address)+ModbusHelper.DATA_TYPES_REGISTER_COUNT[read_data_type]):
 							interpreter_helper[fc]['addresses'].append(call_address)
@@ -356,7 +397,7 @@ class ModbusHelper(object):
 									return
 
 			# for keys/values that should be entered as integer
-			elif key in ['modbus_server_port','modbus_server_id','mqtt_broker_port']:
+			elif key in ['modbus_server_port','modbus_server_id','mqtt_broker_port','mqtt_max_inflight_messages_set']:
 				if not isinstance(key_value,int):
 					print('\t[ERROR] Error parsing config file:',str(full_path_to_modqtt_config_json))
 					print('\t[ERROR] value of key "'+str(key)+'" should be of type "integer" (int)')
@@ -385,11 +426,11 @@ class ModbusHelper(object):
 					print('\t[ERROR] value of key "'+str(key)+'" should be of type "integer" (int) or "float" (float)')
 					print('\t[ERROR] current type of value for key "'+str(key)+'" is',type(key_value),'and current value is config["'+str(key)+'"] =',str(key_value))
 					return
-			# for keys/values that should be entered as boolean, either true or false
-			elif key in ['']:
+			# for keys/values that should be entered as boolean, either true or false		
+			elif key in ['mqtt_broker_tls','mqttv5','mqttv311','mqttv31']:
 				if not isinstance(key_value,bool):
 					print('\t[ERROR] Error parsing config file:',str(full_path_to_modqtt_config_json))
-					print('\t[ERROR] value of key "'+str(key)+'" should be of type boolen, either true or false in the .json config')
+					print('\t[ERROR] value of key "'+str(key)+'" should be of type boolean, either true or false in the .json config')
 					print('\t[ERROR] current type of value for key "'+str(key)+'" is',type(key_value),'and current value is config["'+str(key)+'"] =',str(key_value))
 					return
 
@@ -601,37 +642,87 @@ class ModbusTCPClient:
 class ModbusTCPMqttDataGateway:
 	def termination_signal_handler(self, signal, frame):
 		print('\nYou pressed Ctrl+C!')
-		self.modbus_tcp_client.disconnect()		
+		self.modbus_tcp_client.disconnect()				
+		self.mqtt_publish(
+					'/'.join(['_connection_monitoring',str(self.modqtt_config['mqtt_client_id']),'last_disconnection']),
+					json.dumps(self.generate_timestamp()),
+					0, 
+					True
+				)
 		self.mqttc.loop_stop()
 		self.mqttc.disconnect()
 		print('Bye!')
 		time.sleep(2)
 		sys.exit(0)	
 	
+	def generate_timestamp(self, time_format = '%Y-%m-%d %H:%M:%S%z'):
+		ts_local = datetime.datetime.now().astimezone()
+		ts_utc = ts_local.astimezone(datetime.timezone.utc)
+		return {'timestamp_utc': ts_utc.strftime(time_format), 'timestamp_local': ts_local.strftime(time_format)}
+	
 	# setting callbacks for on_connect events, print some debug feedback
 	def on_connect(self, client, userdata, flags, rc, properties=None):
 		print('\t[INFO] **MQTT** CONNACK received with code %s.' % rc)
+		print('\t[INFO] **MQTT** CONNACK flags: '+str(flags))
 		if rc == 0:
+			self.mqtt_last_connection = self.generate_timestamp()
+			self.mqtt_publish(
+					'/'.join(['_connection_monitoring',str(self.modqtt_config['mqtt_client_id']),'last_connection']),
+					json.dumps(self.mqtt_last_connection),
+					0, 
+					True
+				)
+			if not (self.mqtt_last_disconnection == self.mqtt_last_disconnection_published):
+				self.mqtt_publish(
+					'/'.join(['_connection_monitoring',str(self.modqtt_config['mqtt_client_id']),'last_disconnection']),
+					json.dumps(self.mqtt_last_disconnection),
+					0, 
+					True
+				)
+				self.mqtt_last_disconnection_published = self.mqtt_last_disconnection
+			if not (self.mqtt_last_disconnection_receive_maximum_exceeded == self.mqtt_last_disconnection_receive_maximum_exceeded_published):
+				self.mqtt_publish(
+					'/'.join(['_connection_monitoring',str(self.modqtt_config['mqtt_client_id']),'last_disconnection_received_maximum_exceeded']),
+					json.dumps(self.mqtt_last_disconnection_receive_maximum_exceeded),
+					0, 
+					True
+				)
+				self.mqtt_last_disconnection_receive_maximum_exceeded_published = self.mqtt_last_disconnection_receive_maximum_exceeded
 			print('\t[INFO] **MQTT** Connected to MQTT Broker!')
 			self.mqtt_connected = True
+			self.mqtt_disconnected=False
 		else:
-			print('\t[INFO] **MQTT** Failed to connect, return code %d\n', rc)
+			print('\t[INFO] **MQTT** Failed to connect, return code', rc)
+			if str(rc) in self.mqtt_on_connect_return_codes:
+				rc_meaning = self.mqtt_on_connect_return_codes[str(rc)]				
+			else:
+				rc_meaning = self.mqtt_on_connect_return_codes['other']
+			print('\t[INFO] **MQTT** Failed to connect, reason:', rc_meaning)
 
 	# setting callback for on_publish event, check if publish was successful
 	def on_publish(self, client, userdata, mid, properties=None):
-		print('\t[INFO] **MQTT**',json.dumps(
-				{
-					'client': str(client),
-					'userdata': str(userdata),
-					'mid': str(mid),
-				}
-			)		
-		)
+		if not self.quiet:		
+			print('\t[INFO] **MQTT** Message published! Left the client and/or was recieved by broker',json.dumps(
+					{
+						'client_id': str(client._client_id),
+						'protocol': str(client._protocol),
+						#'userdata': str(userdata),
+						'mid': str(mid),
+					}
+				)		
+			)
 		self.mqtt_last_successful_mid_count += 1
 
 	# handle disconnects
-	def on_disconnect(self, client, userdata, rc):
-		print('\t[INFO] **MQTT** Client got disconnected...')
+	def on_disconnect(self, client, userdata, rc, *args, **kwargs):				
+		# handle 'Receive maximum exceeded' rc separately
+		if str(rc) == 'Receive maximum exceeded':
+			self.mqtt_last_disconnection_receive_maximum_exceeded = self.generate_timestamp()			
+		else:
+			self.mqtt_last_disconnection = self.generate_timestamp()			
+		self.mqtt_connected=False
+		self.mqtt_disconnected=True
+		print('\t[WARNING] **MQTT** Client got disconnected with return code of '+str(rc)+'...')
 
 	# used this for testing only, slow and inefficient as it tears down the connection to broker at every publish...
 	def mqtt_publish_multiple(self,lod):
@@ -647,6 +738,17 @@ class ModbusTCPMqttDataGateway:
 				protocol=paho.MQTTv5, 
 				transport="tcp"
 			)
+	
+	def mqtt_publish(self, topic, payload, qos, retain):
+		publish_result = self.mqttc.publish(topic, payload=payload, qos=qos, retain=retain)											
+		publish_status = publish_result[0]
+		if not self.quiet:
+			print('\t[INFO] **MQTT**',publish_result)
+
+			if publish_status == 0:
+				print('\t[INFO] **MQTT** Sent: '+str(payload)+' to topic "'+str(topic)+'" with qos='+str(qos)+' and retain='+str(retain))
+			else:
+				print('\t[INFO] **MQTT** Failed to send message to topic "'+str(topic)+'"')
 	
 	def mqtt_parse_publish_tag(self, tag_key, tag_current_value, ts_utc, ts_local,limit_flag=False):
 		tag_topic = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_topic']
@@ -670,13 +772,7 @@ class ModbusTCPMqttDataGateway:
 			'limit_flag': limit_flag
 		}		
 		self.mqtt_client_publish_count += 1
-		publish_result = self.mqttc.publish(tag_topic, payload=tag_value, qos=tag_qos, retain=tag_retain)											
-		print('\t[INFO] **MQTT**',publish_result)
-		publish_status = publish_result[0]
-		if publish_status == 0:
-			print('\t[INFO] **MQTT** Sent: '+str(tag_value)+' to topic "'+str(tag_topic)+'" with qos='+str(tag_qos)+' and retain='+str(tag_retain))
-		else:
-			print('\t[INFO] **MQTT** Failed to send message to topic "'+str(tag_topic)+'"')
+		self.mqtt_publish(tag_topic, tag_value, tag_qos, tag_retain)
 	
 	def mqtt_publish_data(self, previous_values, current_values, mqtt_client=None,time_format = '%Y-%m-%d %H:%M:%S%z'):
 		if mqtt_client is None:
@@ -717,17 +813,23 @@ class ModbusTCPMqttDataGateway:
 				else:
 					ts_utc_previously_published = self.mqqt_last_published_values[tag_key]['timestamp_utc']
 					tag_time_elapsed = datetime.datetime.strptime(ts_utc,time_format) - datetime.datetime.strptime(ts_utc_previously_published,time_format)
-					tag_current_value = current_values[tag_key]
+					tag_current_value = current_values[tag_key]					
 					# tag_previous_value = previous_values[tag_key]
 					tag_previously_published_value = self.mqqt_last_published_values[tag_key]['last_published_value']
 					# tag_delta_value = abs((float(tag_current_value) - float(tag_previous_value)))
 					tag_delta_value_last_published = abs((float(tag_current_value) - float(tag_previously_published_value))) 
 					
-					tag_publish = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_publish']
+					tag_publish = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_publish']										
 					
-					# regardless of reporting/upload method, if the value falls outside of high/low limits (assuming they are not None), it is reported
-					if self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_low'] is not None:
-						if float(tag_current_value) <= self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_low']:
+					# if data_type not in ['di','coil','packedbool'] (those have mqtt_ignore_low/high set to None by default), and if value falls outside the mqqt_ignore_low/high thresholds, then ignore the current value and do not publish
+					if self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_ignore_low'] is not None and (float(tag_current_value) < float(self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_ignore_low'])):
+						continue
+					elif self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_ignore_high'] is not None and (float(tag_current_value) > float(self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_ignore_high'])):
+						continue
+
+					# regardless of reporting/upload method, if the value falls outside of high/low limits (assuming they are not None), it is reported. MQTT high/low thresholds are ignored for di, coil and packedbool data_type
+					if (self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_alarm_low'] is not None) and (self.modbus_tcp_client.mqtt_helper[tag_key]['data_type'] not in ['di','coil','packedbool']):
+						if float(tag_current_value) <= self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_alarm_low']:
 							self.mqtt_parse_publish_tag(
 									tag_key = tag_key,
 									tag_current_value = tag_current_value,
@@ -736,7 +838,7 @@ class ModbusTCPMqttDataGateway:
 									limit_flag=True
 								)
 							continue
-						# handle alarm recovery
+						# handle alarm recovery, force publish on recovery
 						elif self.mqqt_last_published_values[tag_key]['limit_flag']:
 							self.mqtt_parse_publish_tag(
 									tag_key = tag_key,
@@ -746,8 +848,8 @@ class ModbusTCPMqttDataGateway:
 									limit_flag=False
 								)
 							continue
-					if self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_high'] is not None:
-						if float(tag_current_value) >= self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_high']:
+					if (self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_alarm_high'] is not None) and (self.modbus_tcp_client.mqtt_helper[tag_key]['data_type'] not in ['di','coil','packedbool']):
+						if float(tag_current_value) >= self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_alarm_high']:
 							self.mqtt_parse_publish_tag(
 								tag_key = tag_key,
 								tag_current_value = tag_current_value,
@@ -756,7 +858,7 @@ class ModbusTCPMqttDataGateway:
 								limit_flag=True
 							)
 							continue
-						# handle alarm recovery
+						# handle alarm recovery, force publish on recovery
 						elif self.mqqt_last_published_values[tag_key]['limit_flag']:
 							self.mqtt_parse_publish_tag(
 									tag_key = tag_key,
@@ -778,7 +880,7 @@ class ModbusTCPMqttDataGateway:
 								)
 						else:
 							continue
-					# if the tag is configured to be uploaded at a regular interval, then the deadband is ignored, unless the -d "force deadband" switch is activated (to be added)
+					# if the tag is configured to be uploaded at a regular interval, then the deadband is ignored, unless the -f "force deadband" switch is activated
 					elif float(tag_time_elapsed.seconds) >= float(tag_publish):
 						tag_current_value = current_values[tag_key]
 						
@@ -797,7 +899,8 @@ class ModbusTCPMqttDataGateway:
 								ts_local = ts_local
 							)
 
-		print('\t[INFO] **MQTT** MQTT publish cycle complete!')
+		if not self.quiet:
+			print('\t[INFO] **MQTT** MQTT publish cycle complete!')
 		return
 	
 	def __init__(self, full_path_to_modqtt_config_json=None, full_path_to_modqtt_template_csv=None, force_deadband=False, quiet=False):
@@ -817,19 +920,49 @@ class ModbusTCPMqttDataGateway:
 			print('\t[ERROR] Now exiting Python with sys.exit()')
 			sys.exit()		
 
+		# set the MQTT version based on the config file provided
+		if self.modqtt_config['mqttv5']:
+			self.mqtt_version = paho.MQTTv5
+		elif self.modqtt_config['mqttv311']:
+			self.mqtt_version = paho.MQTTv311
+		elif self.modqtt_config['mqttv31']:
+			self.mqtt_version = paho.MQTTv31
+		else:
+			print('\t[ERROR] Invalid or unsupported MQTT version in config file!')
+			print('\t[ERROR] At least one of mqttv5, mqttv311 or mqttv31 must be set to true!')
+			print('\t[ERROR] Now exiting Python with sys.exit()')
+			sys.exit()
+
+		self.quiet = quiet
 		self.mqtt_force_deadband = force_deadband
 		self.mqtt_broker_url = os.environ.get('mqtt_broker_url')
 		self.mqtt_broker_creds_username = os.environ.get('mqtt_broker_creds_username')
 		self.mqtt_broker_creds_password = os.environ.get('mqtt_broker_creds_password')
 		self.mqtt_connected = False
+		self.mqtt_disconnected=True
 		self.mqtt_last_successful_mid_count = 0
 		self.mqtt_client_publish_count = 0
 		self.mqqt_last_published_values = {}
+		self.mqtt_on_connect_return_codes = { # https://pypi.org/project/paho-mqtt/#on-connect
+			'0': 'Connection successful',
+			'1': 'Connection refused - incorrect protocol version (see https://pypi.org/project/paho-mqtt/#on-connect)',
+			'2': 'Connection refused - invalid client identifier (see https://pypi.org/project/paho-mqtt/#on-connect)',
+			'3': 'Connection refused - server unavailable (see https://pypi.org/project/paho-mqtt/#on-connect)',
+			'4': 'Connection refused - bad username or password (see https://pypi.org/project/paho-mqtt/#on-connect)',
+			'5': 'Connection refused - not authorised (see https://pypi.org/project/paho-mqtt/#on-connect)',
+			'other': 'Currently unused - unknwon reason (see https://pypi.org/project/paho-mqtt/#on-connect)'
+		}
+		self.mqtt_last_connection = None
+		self.mqtt_last_disconnection = None
+		self.mqtt_last_disconnection_published = 0
+		self.mqtt_last_disconnection_receive_maximum_exceeded = None
+		self.mqtt_last_disconnection_receive_maximum_exceeded_published = None
 		# using MQTT version 5 here, for 3.1.1: MQTTv311, 3.1: MQTTv31
 		# userdata is user defined data of any type, updated by user_data_set()
 		# client_id is the given name of the client
-		self.mqttc = paho.Client(client_id=self.modqtt_config['mqtt_client_id'], userdata=None, protocol=paho.MQTTv5)
+		self.mqttc = paho.Client(client_id=self.modqtt_config['mqtt_client_id'], userdata=None, protocol=self.mqtt_version)
 		self.mqttc.on_connect = self.on_connect
+		self.mqttc.on_disconnect = self.on_disconnect
 
 		# enable TLS for secure connection
 		if self.modqtt_config['mqtt_broker_tls']:
@@ -839,12 +972,18 @@ class ModbusTCPMqttDataGateway:
 
 		self.mqttc.on_publish = self.on_publish		
 		
+		"""
+		Set the maximum number of messages with QoS>0 that can be part way through their network flow at once.
+		Defaults to 20. Increasing this value will consume more memory but can increase throughput.
+		"""
+		self.mqttc.max_inflight_messages_set(self.modqtt_config['mqtt_max_inflight_messages_set'])
+
 		# connect to MQTT Broker on specified port
 		self.mqttc.connect(self.mqtt_broker_url, self.modqtt_config['mqtt_broker_port'])		
 
 		self.mqttc.loop_start()
 
-		# Wait for connection before moving forward
+		# Wait for successful connection before moving forward
 		while self.mqtt_connected != True:
 			time.sleep(0.1)
 
@@ -865,7 +1004,7 @@ class ModbusTCPMqttDataGateway:
 			#wake_up_time = datetime.datetime.now() + datetime.timedelta(seconds=self.modqtt_config['modbus_poll_interval_seconds'])
 			modbus_poll_response = self.modbus_tcp_client.cycle_poll()						
 			
-			if not quiet:
+			if not self.quiet:
 				self.modbus_tcp_client.pretty_print_interpreted_response(modbus_poll_response)
 				print('Press Ctrl+C to stop and exit gracefully...')
 			
