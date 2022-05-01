@@ -6,7 +6,7 @@
     "modbus_poll_interval_seconds": 5.0,
     "mqtt_client_id": "modbus_gateway",
     "mqtt_broker_port": 8883,
-    "mqtt_broker_tls": true,
+    "mqtt_broker_tls": false,
     "mqtt_tls_insecure_set": false,
     "mqtt_v5": true,
     "mqtt_v311": false,

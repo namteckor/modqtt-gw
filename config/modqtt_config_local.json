@@ -7,7 +7,7 @@
     "mqtt_client_id": "modbus_gateway",
     "mqtt_broker_port": 8883,
     "mqtt_broker_tls": true,
-    "mqtt_tls_insecure_set": false,
+    "mqtt_tls_insecure_set": true,
     "mqtt_v5": true,
     "mqtt_v311": false,
     "mqtt_v31": false,

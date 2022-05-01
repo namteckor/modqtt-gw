@@ -1,4 +1,4 @@
-import os, sys, socket, datetime, time, math, csv, json, signal
+import os, sys, socket, datetime, time, math, csv, json, signal, ssl
 from unittest.case import DIFF_OMITTED
 from umodbus.client import tcp
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
@@ -9,8 +9,8 @@ import paho.mqtt.publish as publish
 from paho import mqtt
 from dotenv import load_dotenv
 
-dotenv_path = os.path.join(os.path.dirname(__file__), "../config/.env")
-load_dotenv(dotenv_path=dotenv_path)
+#dotenv_path = os.path.join(os.path.dirname(__file__), "../config/.env")
+
 
 class ModbusHelper(object):
 
@@ -427,7 +427,7 @@ class ModbusHelper(object):
 					print('\t[ERROR] current type of value for key "'+str(key)+'" is',type(key_value),'and current value is config["'+str(key)+'"] =',str(key_value))
 					return
 			# for keys/values that should be entered as boolean, either true or false		
-			elif key in ['mqtt_broker_tls','mqttv5','mqttv311','mqttv31']:
+			elif key in ['mqtt_broker_tls','mqtt_v5','mqtt_v311','mqtt_v31','mqtt_tls_insecure_set']:
 				if not isinstance(key_value,bool):
 					print('\t[ERROR] Error parsing config file:',str(full_path_to_modqtt_config_json))
 					print('\t[ERROR] value of key "'+str(key)+'" should be of type boolean, either true or false in the .json config')
@@ -903,7 +903,7 @@ class ModbusTCPMqttDataGateway:
 			print('\t[INFO] **MQTT** MQTT publish cycle complete!')
 		return
 	
-	def __init__(self, full_path_to_modqtt_config_json=None, full_path_to_modqtt_template_csv=None, force_deadband=False, quiet=False):
+	def __init__(self, full_path_to_modqtt_config_json=None, full_path_to_modqtt_template_csv=None, full_path_to_modqtt_env=None, force_deadband=False, quiet=False):
 		if full_path_to_modqtt_config_json is None:
 			print('\t[ERROR] a modqtt config.json file is required for a ModbusTCPDataLogger instance')
 			print('\t[ERROR] please provide the full path to the modqtt config.json file')
@@ -912,6 +912,14 @@ class ModbusTCPMqttDataGateway:
 			print('\t[ERROR] a modqtt template.csv file is required for a ModbusTCPDataLogger instance')
 			print('\t[ERROR] please provide the full path to the modqtt template.csv file')
 			return
+		if full_path_to_modqtt_env is None:
+			print('\t[ERROR] a modqtt .env file is required for a ModbusTCPDataLogger instance')
+			print('\t[ERROR] please provide the full path to the modqtt .env file')
+			return
+		else:
+			#dotenv_path = os.path.join(os.path.dirname(__file__), "../config/.env-local-broker")
+			dotenv_path = full_path_to_modqtt_env
+			load_dotenv(dotenv_path=dotenv_path)
 				
 		self.modqtt_config = ModbusHelper.parse_json_config(full_path_to_modqtt_config_json)
 		if self.modqtt_config is None:
@@ -921,11 +929,11 @@ class ModbusTCPMqttDataGateway:
 			sys.exit()		
 
 		# set the MQTT version based on the config file provided
-		if self.modqtt_config['mqttv5']:
+		if self.modqtt_config['mqtt_v5']:
 			self.mqtt_version = paho.MQTTv5
-		elif self.modqtt_config['mqttv311']:
+		elif self.modqtt_config['mqtt_v311']:
 			self.mqtt_version = paho.MQTTv311
-		elif self.modqtt_config['mqttv31']:
+		elif self.modqtt_config['mqtt_v31']:
 			self.mqtt_version = paho.MQTTv31
 		else:
 			print('\t[ERROR] Invalid or unsupported MQTT version in config file!')
@@ -964,9 +972,17 @@ class ModbusTCPMqttDataGateway:
 		self.mqttc.on_connect = self.on_connect
 		self.mqttc.on_disconnect = self.on_disconnect
 
+		if self.modqtt_config['mqtt_tls_insecure_set']:	
+			cert_reqs_config = ssl.CERT_NONE
+		else:
+			cert_reqs_config = ssl.CERT_REQUIRED
+
 		# enable TLS for secure connection
 		if self.modqtt_config['mqtt_broker_tls']:
-			self.mqttc.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)
+			self.mqttc.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS,cert_reqs=cert_reqs_config)
+		# set the tls_insecure configuration
+		if self.modqtt_config['mqtt_tls_insecure_set'] and self.modqtt_config['mqtt_broker_tls']:	
+			self.mqttc.tls_insecure_set(self.modqtt_config['mqtt_tls_insecure_set'])			
 		# set username and password
 		self.mqttc.username_pw_set(self.mqtt_broker_creds_username, self.mqtt_broker_creds_password)		
 
