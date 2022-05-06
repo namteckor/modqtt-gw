@@ -15,15 +15,15 @@ When calling modqtt-gw, pass the path to these two (2) configuration files as ar
 ## Usage  
 ```text
 $ (python3) path/to/modqtt-gw.py
-    -c <path to Modbus and MQTT configuration file (.json format)> (--config) [REQUIRED]s
-	-t <path to Modbus and MQTT template file (.csv format)> (--template) [REQUIRED]
-	-e <path to .env file with username/password information used for authentication with the MQTT broker> (--env) [optional]
-	-C <string path to the Certificate Authority (CA) certificate files that are to be treated as trusted by this client (ex: some/path/ca.crt)> (--ca-certs) [optional]
-	-F <string pointing to the PEM encoded client certificate file (ex: some/path/client.crt)> (--certfile) [optional]
-	-K <string pointing to the PEM encoded client private key file (ex: some/path/client.key)> (--keyfile) [optional]
-	-f <to force the deadband logic on MQTT interval uploads, i.e. if set to True, do not report unless changes exceed the deadband, default False> (--force-deadband) [optional]
-	-q <to be quiet and to not display the interval Modbus reads, default False> (--quiet) [optional]
-	-h to show the help message and exit (--help) [optional]'
+    -c <path to Modbus and MQTT configuration file (.json format)> (--config) [REQUIRED]
+    -t <path to Modbus and MQTT template file (.csv format)> (--template) [REQUIRED]
+    -e <path to .env file with username/password information used for authentication with the MQTT broker> (--env) [optional]
+    -C <string path to the Certificate Authority (CA) certificate files that are to be treated as trusted by this client (ex: some/path/ca.crt)> (--ca-certs) [optional]
+    -F <string pointing to the PEM encoded client certificate file (ex: some/path/client.crt)> (--certfile) [optional]
+    -K <string pointing to the PEM encoded client private key file (ex: some/path/client.key)> (--keyfile) [optional]
+    -f <to force the deadband logic on MQTT interval uploads, i.e. if set to True, do not report unless changes exceed the deadband, default False> (--force-deadband) [optional]
+    -q <to be quiet and to not display the interval Modbus reads, default False> (--quiet) [optional]
+    -h to show the help message and exit (--help) [optional]'
 ```
 
 ## Configuration & Template files  
