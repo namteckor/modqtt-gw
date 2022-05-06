@@ -362,14 +362,14 @@ class ModbusHelper(object):
 			key_value = config[key]
 
 			# for keys/values that should be entered as string
-			if key in ['modbus_server_ip','mqtt_client_id']:
+			if key in ['modbus_server_ip','mqtt_client_id','mqtt_broker_ip_or_url']:
 				if not isinstance(key_value,str):
 					print('\t[ERROR] Error parsing config file:',str(full_path_to_modqtt_config_json))
 					print('\t[ERROR] value of key "'+str(key)+'" should be of type "string" (str)')
 					print('\t[ERROR] current type of value for key "'+str(key)+'" is',type(key_value),'and current value is config["'+str(key)+'"] =',str(key_value))
 					return
 				# check for valid IP address format and content
-				if key == 'modbus_server_ip':					
+				if (key == 'modbus_server_ip') or (key == 'mqtt_broker_ip_or_url'):					
 					if key_value in ['localhost','Localhost','LocalHost','LOCALHOST','Local Host','LOCAL HOST','local host']:
 						config[key] = 'localhost'
 						continue
@@ -427,7 +427,7 @@ class ModbusHelper(object):
 					print('\t[ERROR] current type of value for key "'+str(key)+'" is',type(key_value),'and current value is config["'+str(key)+'"] =',str(key_value))
 					return
 			# for keys/values that should be entered as boolean, either true or false		
-			elif key in ['mqtt_broker_tls','mqtt_v5','mqtt_v311','mqtt_v31','mqtt_tls_insecure_set']:
+			elif key in ['mqtt_connection_monitoring','mqtt_broker_tls','mqtt_v5','mqtt_v311','mqtt_v31','mqtt_tls_insecure_set']:
 				if not isinstance(key_value,bool):
 					print('\t[ERROR] Error parsing config file:',str(full_path_to_modqtt_config_json))
 					print('\t[ERROR] value of key "'+str(key)+'" should be of type boolean, either true or false in the .json config')
@@ -643,12 +643,13 @@ class ModbusTCPMqttDataGateway:
 	def termination_signal_handler(self, signal, frame):
 		print('\nYou pressed Ctrl+C!')
 		self.modbus_tcp_client.disconnect()				
-		self.mqtt_publish(
-					'/'.join(['_connection_monitoring',str(self.modqtt_config['mqtt_client_id']),'last_disconnection']),
-					json.dumps(self.generate_timestamp()),
-					0, 
-					True
-				)
+		if self.modqtt_config['mqtt_connection_monitoring']:
+			self.mqtt_publish(
+						'/'.join([str(self.modqtt_config['mqtt_client_id']),'_connection_monitoring','last_disconnection']),
+						json.dumps(self.generate_timestamp()),
+						0, 
+						True
+					)
 		self.mqttc.loop_stop()
 		self.mqttc.disconnect()
 		print('Bye!')
@@ -665,39 +666,40 @@ class ModbusTCPMqttDataGateway:
 		print('\t[INFO] **MQTT** CONNACK received with code %s.' % rc)
 		print('\t[INFO] **MQTT** CONNACK flags: '+str(flags))
 		if rc == 0:
-			self.mqtt_last_connection = self.generate_timestamp()
-			self.mqtt_publish(
-					'/'.join(['_connection_monitoring',str(self.modqtt_config['mqtt_client_id']),'last_connection']),
-					json.dumps(self.mqtt_last_connection),
-					0, 
-					True
-				)
-			if not (self.mqtt_last_disconnection == self.mqtt_last_disconnection_published):
+			self.mqtt_last_connection = self.generate_timestamp()		
+			if self.modqtt_config['mqtt_connection_monitoring']:	
 				self.mqtt_publish(
-					'/'.join(['_connection_monitoring',str(self.modqtt_config['mqtt_client_id']),'last_disconnection']),
-					json.dumps(self.mqtt_last_disconnection),
-					0, 
-					True
-				)
-				self.mqtt_last_disconnection_published = self.mqtt_last_disconnection
-			if not (self.mqtt_last_disconnection_receive_maximum_exceeded == self.mqtt_last_disconnection_receive_maximum_exceeded_published):
-				self.mqtt_publish(
-					'/'.join(['_connection_monitoring',str(self.modqtt_config['mqtt_client_id']),'last_disconnection_received_maximum_exceeded']),
-					json.dumps(self.mqtt_last_disconnection_receive_maximum_exceeded),
-					0, 
-					True
-				)
-				self.mqtt_last_disconnection_receive_maximum_exceeded_published = self.mqtt_last_disconnection_receive_maximum_exceeded
+						'/'.join([str(self.modqtt_config['mqtt_client_id']),'_connection_monitoring','last_connection']),
+						json.dumps(self.mqtt_last_connection),
+						0, 
+						True
+					)
+				if not (self.mqtt_last_disconnection == self.mqtt_last_disconnection_published):
+					self.mqtt_publish(
+						'/'.join([str(self.modqtt_config['mqtt_client_id']),'_connection_monitoring','last_disconnection']),
+						json.dumps(self.mqtt_last_disconnection),
+						0, 
+						True
+					)
+					self.mqtt_last_disconnection_published = self.mqtt_last_disconnection
+				if not (self.mqtt_last_disconnection_receive_maximum_exceeded == self.mqtt_last_disconnection_receive_maximum_exceeded_published):
+					self.mqtt_publish(
+						'/'.join([str(self.modqtt_config['mqtt_client_id']),'_connection_monitoring','last_disconnection_received_maximum_exceeded']),
+						json.dumps(self.mqtt_last_disconnection_receive_maximum_exceeded),
+						0, 
+						True
+					)
+					self.mqtt_last_disconnection_receive_maximum_exceeded_published = self.mqtt_last_disconnection_receive_maximum_exceeded
 			print('\t[INFO] **MQTT** Connected to MQTT Broker!')
 			self.mqtt_connected = True
 			self.mqtt_disconnected=False
 		else:
 			print('\t[INFO] **MQTT** Failed to connect, return code', rc)
-			if str(rc) in self.mqtt_on_connect_return_codes:
-				rc_meaning = self.mqtt_on_connect_return_codes[str(rc)]				
-			else:
-				rc_meaning = self.mqtt_on_connect_return_codes['other']
-			print('\t[INFO] **MQTT** Failed to connect, reason:', rc_meaning)
+			#if str(rc) in self.mqtt_on_connect_return_codes:
+			#	rc_meaning = self.mqtt_on_connect_return_codes[str(rc)]				
+			#else:
+			#	rc_meaning = self.mqtt_on_connect_return_codes['other']
+			#print('\t[INFO] **MQTT** Failed to connect, reason:', rc_meaning)
 
 	# setting callback for on_publish event, check if publish was successful
 	def on_publish(self, client, userdata, mid, properties=None):
@@ -751,7 +753,7 @@ class ModbusTCPMqttDataGateway:
 				print('\t[INFO] **MQTT** Failed to send message to topic "'+str(topic)+'"')
 	
 	def mqtt_parse_publish_tag(self, tag_key, tag_current_value, ts_utc, ts_local,limit_flag=False):
-		tag_topic = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_topic']
+		tag_topic = '/'.join([str(self.modqtt_config['mqtt_client_id']),self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_topic']])
 		tag_qos = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_qos']
 		tag_retain = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_retain']
 		tag_payload = self.modbus_tcp_client.mqtt_helper[tag_key]['mqtt_payload']
@@ -903,7 +905,8 @@ class ModbusTCPMqttDataGateway:
 			print('\t[INFO] **MQTT** MQTT publish cycle complete!')
 		return
 	
-	def __init__(self, full_path_to_modqtt_config_json=None, full_path_to_modqtt_template_csv=None, full_path_to_modqtt_env=None, force_deadband=False, quiet=False):
+	def __init__(self, full_path_to_modqtt_config_json=None, full_path_to_modqtt_template_csv=None, full_path_to_modqtt_env=None, full_path_to_modqtt_ca_certs=None, full_path_to_modqtt_certfile=None, full_path_to_modqtt_keyfile=None, force_deadband=False, quiet=False):
+						
 		if full_path_to_modqtt_config_json is None:
 			print('\t[ERROR] a modqtt config.json file is required for a ModbusTCPDataLogger instance')
 			print('\t[ERROR] please provide the full path to the modqtt config.json file')
@@ -912,14 +915,24 @@ class ModbusTCPMqttDataGateway:
 			print('\t[ERROR] a modqtt template.csv file is required for a ModbusTCPDataLogger instance')
 			print('\t[ERROR] please provide the full path to the modqtt template.csv file')
 			return
-		if full_path_to_modqtt_env is None:
-			print('\t[ERROR] a modqtt .env file is required for a ModbusTCPDataLogger instance')
-			print('\t[ERROR] please provide the full path to the modqtt .env file')
-			return
-		else:
+		#if full_path_to_modqtt_env is None:
+		#	print('\t[ERROR] a modqtt .env file is required for a ModbusTCPDataLogger instance')
+		#	print('\t[ERROR] please provide the full path to the modqtt .env file')
+		#	return
+		#else:
+		if full_path_to_modqtt_env is not None:
 			#dotenv_path = os.path.join(os.path.dirname(__file__), "../config/.env-local-broker")
 			dotenv_path = full_path_to_modqtt_env
 			load_dotenv(dotenv_path=dotenv_path)
+			self.mqtt_broker_creds_username = os.environ.get('mqtt_broker_creds_username')
+			self.mqtt_broker_creds_password = os.environ.get('mqtt_broker_creds_password')
+			self.mqtt_broker_creds = True
+		else:
+			self.mqtt_broker_creds = False
+		
+		self.full_path_to_modqtt_ca_certs = full_path_to_modqtt_ca_certs
+		self.full_path_to_modqtt_certfile = full_path_to_modqtt_certfile
+		self.full_path_to_modqtt_keyfile = full_path_to_modqtt_keyfile
 				
 		self.modqtt_config = ModbusHelper.parse_json_config(full_path_to_modqtt_config_json)
 		if self.modqtt_config is None:
@@ -943,9 +956,8 @@ class ModbusTCPMqttDataGateway:
 
 		self.quiet = quiet
 		self.mqtt_force_deadband = force_deadband
-		self.mqtt_broker_url = os.environ.get('mqtt_broker_url')
-		self.mqtt_broker_creds_username = os.environ.get('mqtt_broker_creds_username')
-		self.mqtt_broker_creds_password = os.environ.get('mqtt_broker_creds_password')
+		self.mqtt_broker_url = self.modqtt_config['mqtt_broker_ip_or_url']
+		
 		self.mqtt_connected = False
 		self.mqtt_disconnected=True
 		self.mqtt_last_successful_mid_count = 0
@@ -979,12 +991,20 @@ class ModbusTCPMqttDataGateway:
 
 		# enable TLS for secure connection
 		if self.modqtt_config['mqtt_broker_tls']:
-			self.mqttc.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS,cert_reqs=cert_reqs_config)
+			self.mqttc.tls_set(
+					ca_certs=self.full_path_to_modqtt_ca_certs, 
+					certfile=self.full_path_to_modqtt_certfile, 
+					keyfile=self.full_path_to_modqtt_keyfile, 									
+					tls_version=mqtt.client.ssl.PROTOCOL_TLS,
+					cert_reqs=cert_reqs_config,
+					ciphers=None
+				)
 		# set the tls_insecure configuration
 		if self.modqtt_config['mqtt_tls_insecure_set'] and self.modqtt_config['mqtt_broker_tls']:	
 			self.mqttc.tls_insecure_set(self.modqtt_config['mqtt_tls_insecure_set'])			
 		# set username and password
-		self.mqttc.username_pw_set(self.mqtt_broker_creds_username, self.mqtt_broker_creds_password)		
+		if self.mqtt_broker_creds:
+			self.mqttc.username_pw_set(self.mqtt_broker_creds_username, self.mqtt_broker_creds_password)		
 
 		self.mqttc.on_publish = self.on_publish		
 		
