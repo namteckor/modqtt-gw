@@ -25,7 +25,19 @@ $ (python3) path/to/modqtt-gw.py
     -q <to be quiet and to not display the interval Modbus reads, default False> (--quiet) [optional]
     -h to show the help message and exit (--help) [optional]'
 ```
-
+## Authentication
+### Username/password authentication (.env file)
+Format and content:
+```text
+mqtt_broker_creds_username=<insert-username-here>
+mqtt_broker_creds_password=<insert-password-here>
+```
+This is where the username and password used for basic authentication with the MQTT Broker are set and stored. Pass the path to this .env file with the -e switch (--env) if needed  
+### Certificates-based authentication
+See [tls_set()](https://www.eclipse.org/paho/index.php?page=clients/python/docs/index.php):
+* -C (--ca-certs) ~ ca_certs; "Certificate Authority certificate files that are to be treated as trusted by this client"  
+* -F (--certfile) ~ certfile; "PEM encoded client certificate"   
+* -K (--keyfile) ~ keyfile; "PEM encoded client private key"  
 ## Configuration & Template files  
 ### (1) Modbus/MQTT configuration file in .json format   
 #### modbus_server_ip
@@ -47,9 +59,9 @@ $ (python3) path/to/modqtt-gw.py
 #### mqtt_connection_monitoring
 &ensp;'mqtt_connection_monitoring': boolean, either true or false; if true, the MQTT Client will monitor its connection status with the MQTT Broker and communicate the times of last connections/disconnections to the broker on a dedicated topic "_connection_monitoring"  
 #### mqtt_broker_tls
-&ensp;'mqtt_broker_tls': boolean, either true or false;
+&ensp;'mqtt_broker_tls': boolean, either true or false; whether to use TLS (true) or not (false); see [tls_set()](https://www.eclipse.org/paho/index.php?page=clients/python/docs/index.php)  
 #### mqtt_tls_insecure_set
-&ensp;'mqtt_tls_insecure_set': boolean, either true or false; true **NOT** recommended (insecure), see [documentation](https://www.eclipse.org/paho/index.php?page=clients/python/docs/index.php): "Configure verification of the server hostname in the server certificate."  
+&ensp;'mqtt_tls_insecure_set': boolean, either true or false; true **NOT** recommended (insecure), see [tls_insecure_set()](https://www.eclipse.org/paho/index.php?page=clients/python/docs/index.php): "Configure verification of the server hostname in the server certificate."  
 #### mqtt_v5
 &ensp;'mqtt_v5': boolean, either true or false; set to true to use MQTT v5 (highest priority)  
 #### mqtt_v311
@@ -57,10 +69,39 @@ $ (python3) path/to/modqtt-gw.py
 #### mqtt_v31
 &ensp;'mqtt_v31': boolean, either true or false; set to true to use MQTT v3.1.0 (least priority)  
 #### mqtt_max_inflight_messages_set
-&ensp;'mqtt_max_inflight_messages_set': a positive integer value; see [Eclipse - paho - Python Client - documentation](https://www.eclipse.org/paho/index.php?page=clients/python/docs/index.php): "Set the maximum number of messages with QoS>0 that can be part way through their network flow at once.
+&ensp;'mqtt_max_inflight_messages_set': a positive integer value; see [max_inflight_messages_set()](https://www.eclipse.org/paho/index.php?page=clients/python/docs/index.php): "Set the maximum number of messages with QoS>0 that can be part way through their network flow at once.
 Defaults to 20. Increasing this value will consume more memory but can increase throughput."
 
 ### (2) Modbus/MQTT template file in .csv format  
-To be added soon..
-
-Additional README details to be added soon...
+#### address
+&ensp; 'address': see [address](https://github.com/namteckor/modbus-dl#address)  
+#### read_type
+&ensp; 'read_type': see [read_type](https://github.com/namteckor/modbus-dl#read_type)  
+#### data_type
+&ensp; 'data_type': see [data_type](https://github.com/namteckor/modbus-dl#data_type)  
+#### tag_name
+&ensp; 'tag_name': see [tag_name](https://github.com/namteckor/modbus-dl#tag_name)  
+#### scaling_coeff
+&ensp; 'scaling_coeff': see [scaling_coeff](https://github.com/namteckor/modbus-dl#scaling_coeff)  
+#### scaling_offset
+&ensp; 'scaling_offset': see [scaling_offset](https://github.com/namteckor/modbus-dl#scaling_offset)  
+#### mqtt_topic
+&ensp; 'mqtt_topic': string representing the topic to publish to, this will be prepended to the tag_name (can be empty)  
+#### mqtt_payload
+&ensp; 'mqtt_payload': currently supports "text" (just publish the value) and "json" (publish value with UTC and local timestamps); defaults to "text" if not specified  
+#### mqtt_qos
+&ensp; 'mqtt_qos': the Quality of Service (QoS) level to use; either 0 (at most once), 1 (at least once), or 2 (exactly once)  ; defaults to 0 if not specified  
+#### mqtt_retain
+&ensp; 'mqtt_retain': a string of either "true" or "false"; whether or not to retain the message  
+#### mqtt_publish
+&ensp; 'mqtt_publish': a string defining the MQTT publish method; either "rbe" (report-by-exception), or a value representing the regular interval upload time in seconds  
+#### mqtt_deadband
+&ensp; 'mqtt_deadband': defines a deadband on the **scaled value** when reporting by exception  
+#### mqtt_alarm_low
+&ensp; 'mqtt_alarm_low': defines a low alarm threshold on the **scaled value**; the scaled value will be published at each scan interval (regardless of mqtt_publish) as long as it remains below this threshold  
+#### mqtt_alarm_high
+&ensp; 'mqtt_alarm_high': defines a high alarm threshold on the **scaled value**; the scaled value will be published at each scan interval (regardless of mqtt_publish) as long as it remains above this threshold  
+#### mqtt_ignore_low
+&ensp; 'mqtt_ignore_low': completly ignore reporting and alarming while the **scaled value** remains below this threshold  
+#### mqtt_ignore_high
+&ensp; 'mqtt_ignore_high': completly ignore reporting and alarming while the **scaled value** remains above this threshold  
