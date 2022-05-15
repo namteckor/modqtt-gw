@@ -32,7 +32,7 @@ Format and content:
 mqtt_broker_creds_username=<insert-username-here>
 mqtt_broker_creds_password=<insert-password-here>
 ```
-This is where the username and password used for basic authentication with the MQTT Broker are set and stored. Pass the path to this .env file with the -e switch (--env) if needed  
+This is where the username and password used for basic authentication with the MQTT Broker are set and stored. Pass the path to this .env file with the -e switch (--env) if needed.  
 ### Certificates-based authentication
 See [tls_set()](https://www.eclipse.org/paho/index.php?page=clients/python/docs/index.php):
 * -C (--ca-certs) ~ ca_certs; "Certificate Authority certificate files that are to be treated as trusted by this client"  
@@ -90,13 +90,13 @@ Defaults to 20. Increasing this value will consume more memory but can increase 
 #### mqtt_payload
 &ensp; 'mqtt_payload': currently supports "text" (just publish the value) and "json" (publish value with UTC and local timestamps); defaults to "text" if not specified  
 #### mqtt_qos
-&ensp; 'mqtt_qos': the Quality of Service (QoS) level to use; either 0 (at most once), 1 (at least once), or 2 (exactly once)  ; defaults to 0 if not specified  
+&ensp; 'mqtt_qos': the Quality of Service (QoS) level to use; either 0 (at most once), 1 (at least once), or 2 (exactly once); defaults to 0 if not specified  
 #### mqtt_retain
 &ensp; 'mqtt_retain': a string of either "true" or "false"; whether or not to retain the message  
 #### mqtt_publish
 &ensp; 'mqtt_publish': a string defining the MQTT publish method; either "rbe" (report-by-exception), or a value representing the regular interval upload time in seconds  
 #### mqtt_deadband
-&ensp; 'mqtt_deadband': defines a deadband on the **scaled value** when reporting by exception  
+&ensp; 'mqtt_deadband': defines a deadband on the **scaled value** when reporting by exception; ignored by default for interval uploads/publish, use -f (--force-deadband) to force and apply the deadband logic with interval uploads/publish  
 #### mqtt_alarm_low
 &ensp; 'mqtt_alarm_low': defines a low alarm threshold on the **scaled value**; the scaled value will be published at each scan interval (regardless of mqtt_publish) as long as it remains below this threshold  
 #### mqtt_alarm_high
