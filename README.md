@@ -45,17 +45,17 @@ $ (python3) path/to/modqtt-gw.py
 #### mqtt_broker_port
 &ensp;'mqtt_broker_port': a strictly positive integer [1;65535] representing the TCP port where the MQTT Broker process is running; ex: 8883  
 #### mqtt_connection_monitoring
-&ensp;'mqtt_connection_monitoring': boolean, either true or false; if true, the MQTT Client will monitor its connection status with the MQTT Broker and communicate the times of last connections/disconnections to the broker on a dedicated topic ''  
+&ensp;'mqtt_connection_monitoring': boolean, either true or false; if true, the MQTT Client will monitor its connection status with the MQTT Broker and communicate the times of last connections/disconnections to the broker on a dedicated topic "_connection_monitoring"  
 #### mqtt_broker_tls
 &ensp;'mqtt_broker_tls': boolean, either true or false;
 #### mqtt_tls_insecure_set
-&ensp;'mqtt_tls_insecure_set': boolean, either true or false;
+&ensp;'mqtt_tls_insecure_set': boolean, either true or false; true **NOT** recommended (insecure), see [documentation](https://www.eclipse.org/paho/index.php?page=clients/python/docs/index.php): "Configure verification of the server hostname in the server certificate."  
 #### mqtt_v5
-&ensp;'mqtt_v5': boolean, either true or false; set to true to use MQTT v5  
+&ensp;'mqtt_v5': boolean, either true or false; set to true to use MQTT v5 (highest priority)  
 #### mqtt_v311
-&ensp;'mqtt_v311': boolean, either true or false; set to true to use MQTT v3.1.1  
+&ensp;'mqtt_v311': boolean, either true or false; set to true to use MQTT v3.1.1 (second highest priority)  
 #### mqtt_v31
-&ensp;'mqtt_v31': boolean, either true or false; set to true to use MQTT v3.1.0  
+&ensp;'mqtt_v31': boolean, either true or false; set to true to use MQTT v3.1.0 (least priority)  
 #### mqtt_max_inflight_messages_set
 &ensp;'mqtt_max_inflight_messages_set': a positive integer value; see [Eclipse - paho - Python Client - documentation](https://www.eclipse.org/paho/index.php?page=clients/python/docs/index.php): "Set the maximum number of messages with QoS>0 that can be part way through their network flow at once.
 Defaults to 20. Increasing this value will consume more memory but can increase throughput."

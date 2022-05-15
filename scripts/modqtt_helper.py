@@ -9,9 +9,6 @@ import paho.mqtt.publish as publish
 from paho import mqtt
 from dotenv import load_dotenv
 
-#dotenv_path = os.path.join(os.path.dirname(__file__), "../config/.env")
-
-
 class ModbusHelper(object):
 
 	FUNCTION_CODES = {
@@ -369,7 +366,7 @@ class ModbusHelper(object):
 					print('\t[ERROR] current type of value for key "'+str(key)+'" is',type(key_value),'and current value is config["'+str(key)+'"] =',str(key_value))
 					return
 				# check for valid IP address format and content
-				if (key == 'modbus_server_ip') or (key == 'mqtt_broker_ip_or_url'):					
+				if (key == 'modbus_server_ip'): #or (key == 'mqtt_broker_ip_or_url'):					
 					if key_value in ['localhost','Localhost','LocalHost','LOCALHOST','Local Host','LOCAL HOST','local host']:
 						config[key] = 'localhost'
 						continue
