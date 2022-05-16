@@ -120,6 +120,6 @@ Defaults to 20. Increasing this value will consume more memory but can increase 
 -F /path/to/client.crt \
 -K /path/to/client.key
 ```
-![Certificates-based authentication example](../assets/modqtt-gw-certificates-based-auth-example.pngraw=true)
+![Certificates-based authentication example](../assets/modqtt-gw-certificates-based-auth-example.png?raw=true)
 ### Sample output
 ![Sample output](../assets/modqtt-gw-example.png?raw=true)
