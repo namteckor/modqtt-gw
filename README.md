@@ -105,3 +105,21 @@ Defaults to 20. Increasing this value will consume more memory but can increase 
 &ensp; 'mqtt_ignore_low': completly ignore reporting and alarming while the **scaled value** remains below this threshold  
 #### mqtt_ignore_high
 &ensp; 'mqtt_ignore_high': completly ignore reporting and alarming while the **scaled value** remains above this threshold  
+
+## Examples
+### Basic authentication example
+```text
+./modqtt-gw.py -c config/modqtt_config_local.json -t template/modqtt_template_10.csv \
+-e config/.env-local-broker
+```
+![Basic authentication example](../assets/modqtt-gw-basic-auth-example.png?raw=true)
+### Certificates-based authentication example
+```text
+./modqtt-gw.py -c config/modqtt_config_local.json -t template/modqtt_template_10.csv \
+-C /path/to/ca.crt \
+-F /path/to/client.crt \
+-K /path/to/client.key
+```
+![Certificates-based authentication example](../assets/modqtt-gw-certificates-based-auth-example.pngraw=true)
+### Sample output
+![Sample output](../assets/modqtt-gw-example.png?raw=true)
