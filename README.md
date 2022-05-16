@@ -92,19 +92,19 @@ Defaults to 20. Increasing this value will consume more memory but can increase 
 #### mqtt_qos
 &ensp; 'mqtt_qos': the Quality of Service (QoS) level to use; either 0 (at most once), 1 (at least once), or 2 (exactly once); defaults to 0 if not specified  
 #### mqtt_retain
-&ensp; 'mqtt_retain': a string of either "true" or "false"; whether or not to retain the message  
+&ensp; 'mqtt_retain': a string of either "true" or "false"; whether (true) or not (false) to retain the message; defaults to true if not specified  
 #### mqtt_publish
-&ensp; 'mqtt_publish': a string defining the MQTT publish method; either "rbe" (report-by-exception), or a value representing the regular interval upload time in seconds  
+&ensp; 'mqtt_publish': a string defining the MQTT publish method; either "rbe" (report-by-exception), or a value representing the regular interval upload time in seconds; default to "rbe" if not specified  
 #### mqtt_deadband
-&ensp; 'mqtt_deadband': defines a deadband on the **scaled value** when reporting by exception; ignored by default for interval uploads/publish, use -f (--force-deadband) to force and apply the deadband logic with interval uploads/publish  
+&ensp; 'mqtt_deadband': defines a deadband on the **scaled value** when reporting by exception; ignored by default for interval uploads/publish, use -f (--force-deadband) to force and apply the deadband logic with interval uploads/publish; defaults to 0 if none specified or unsupported, if data_type is 'di', 'coil' or 'packedbool', also if mqqt_publish is not rbe  
 #### mqtt_alarm_low
-&ensp; 'mqtt_alarm_low': defines a low alarm threshold on the **scaled value**; the scaled value will be published at each scan interval (regardless of mqtt_publish) as long as it remains below this threshold  
+&ensp; 'mqtt_alarm_low': defines a low alarm threshold on the **scaled value**; the scaled value will be published at each scan interval (regardless of mqtt_publish) as long as it remains below this threshold; defaults to None if not specified  
 #### mqtt_alarm_high
-&ensp; 'mqtt_alarm_high': defines a high alarm threshold on the **scaled value**; the scaled value will be published at each scan interval (regardless of mqtt_publish) as long as it remains above this threshold  
+&ensp; 'mqtt_alarm_high': defines a high alarm threshold on the **scaled value**; the scaled value will be published at each scan interval (regardless of mqtt_publish) as long as it remains above this threshold; defaults to None if not specified  
 #### mqtt_ignore_low
-&ensp; 'mqtt_ignore_low': completly ignore reporting and alarming while the **scaled value** remains below this threshold  
+&ensp; 'mqtt_ignore_low': completly ignore reporting and alarming while the **scaled value** remains below this threshold; defaults to None if not specified  
 #### mqtt_ignore_high
-&ensp; 'mqtt_ignore_high': completly ignore reporting and alarming while the **scaled value** remains above this threshold  
+&ensp; 'mqtt_ignore_high': completly ignore reporting and alarming while the **scaled value** remains above this threshold; defaults to None if not specified  
 
 ## Examples
 ### Basic authentication example
